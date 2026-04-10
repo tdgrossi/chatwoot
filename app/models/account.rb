@@ -147,7 +147,7 @@ class Account < ApplicationRecord
   scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
 
   before_validation :validate_limit_keys
-  after_create_commit :notify_creation
+  after_create_commit :notify_creation, :create_default_pipeline_stage
   after_destroy :remove_account_sequences
 
   def agents
@@ -203,6 +203,10 @@ class Account < ApplicationRecord
 
   def notify_creation
     Rails.configuration.dispatcher.dispatch(ACCOUNT_CREATED, Time.zone.now, account: self)
+  end
+
+  def create_default_pipeline_stage
+    pipeline_stages.create!(name: 'New', position: 1, color: '#22C55E')
   end
 
   trigger.after(:insert).for_each(:row) do
