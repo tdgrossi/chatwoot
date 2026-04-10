@@ -7,17 +7,17 @@ This roadmap extends Chatwoot with a pipeline-first CRM layer. Contacts gain a n
 ## Phases
 
 **Phase Numbering:**
-- Integer phases (1, 2, 3…): Planned milestone work
+- Integer phases (1, 2, 3...): Planned milestone work
 - Decimal phases (e.g. 2.1): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Database & Models** — Contact `pipeline_stage_id` FK, Pipeline & PipelineStage models, account auto-creation
-- [ ] **Phase 2: Stage CRUD API** — RESTful API for stage management (list, create, update, delete, move up/down)
-- [ ] **Phase 3: Stats API** — Per-stage contact counts endpoint
-- [ ] **Phase 4: Frontend Infrastructure** — Pinia stores, API clients, `/accounts/:accountId/leads` route
-- [ ] **Phase 5: Kanban Board & Drag-Drop** — Kanban view with stage columns, draggable cards, and unassigned column
-- [ ] **Phase 6: Stage Management Admin UI** — Create, edit, delete, and reorder stages in-app
-- [ ] **Phase 7: List View & View Toggle** — Table view with stage filter and toggle between views
-- [ ] **Phase 8: Stats Panel & Contact Sidebar** — Stats panel at top of dashboard, pipeline stage selector in contact sidebar
+- [ ] **Phase 1: Database & Models** -- Contact `pipeline_stage_id` FK, Pipeline & PipelineStage models, account auto-creation
+- [ ] **Phase 2: Stage CRUD API** -- RESTful API for stage management (list, create, update, delete, move up/down)
+- [ ] **Phase 3: Stats API** -- Per-stage contact counts endpoint
+- [ ] **Phase 4: Frontend Infrastructure** -- Pinia stores, API clients, `/accounts/:accountId/leads` route
+- [ ] **Phase 5: Kanban Board & Drag-Drop** -- Kanban view with stage columns, draggable cards, and unassigned column
+- [ ] **Phase 6: Stage Management Admin UI** -- Create, edit, delete, and reorder stages in-app
+- [ ] **Phase 7: List View & View Toggle** -- Table view with stage filter and toggle between views
+- [ ] **Phase 8: Stats Panel & Contact Sidebar** -- Stats panel at top of dashboard, pipeline stage selector in contact sidebar
 
 ## Phase Details
 
@@ -31,7 +31,10 @@ This roadmap extends Chatwoot with a pipeline-first CRM layer. Contacts gain a n
   3. `Contact` update action accepts `pipeline_stage_id` in permitted params
   4. New accounts auto-create a `Pipeline` with one "New" stage via `after_create` callback
   5. A data migration exists to create pipelines for existing accounts without one
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] .planning/phases/01-database-models/01-01-PLAN.md -- PipelineStage model, Contact association, Account callback, permitted params update
 
 ---
 
@@ -46,7 +49,10 @@ This roadmap extends Chatwoot with a pipeline-first CRM layer. Contacts gain a n
   4. `DELETE /api/v1/accounts/:account_id/pipeline_stages/:id` nullifies `pipeline_stage_id` on affected contacts, then destroys the stage
   5. `PATCH /api/v1/accounts/:account_id/pipeline_stages/:id/move` accepts `{ direction: "up" | "down" }` and swaps position with the neighboring stage
   6. All endpoints are scoped to the account and restricted to admins via existing authorization pattern
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] .planning/phases/02-stage-crud-api/02-01-PLAN.md -- PipelineStagesController CRUD + move, PipelineStagePolicy, routes, migrations, factory, specs
 
 > **Note**: Reorder uses a simple up/down move rather than a full `stage_ids: [...]` array endpoint. This avoids a drag-to-sort dependency in the admin UI while covering all practical reordering needs. Upgrade to full reorder if users request it.
 
@@ -68,7 +74,7 @@ This roadmap extends Chatwoot with a pipeline-first CRM layer. Contacts gain a n
 ### Phase 4: Frontend Infrastructure
 **Goal**: Pinia stores and routing ready for the CRM dashboard UI
 **Depends on**: Phases 2 & 3
-**Requirements**: (none — infrastructure enabler)
+**Requirements**: (none -- infrastructure enabler)
 **Success Criteria** (what must be TRUE):
   1. A `usePipelineStore` Pinia store exists with reactive state for stages, stats, and CRUD actions (fetch, create, update, delete, move)
   2. A `useContactsStore` gains a `fetchByStage(stageId)` action returning contacts filtered by pipeline stage
@@ -142,16 +148,15 @@ This roadmap extends Chatwoot with a pipeline-first CRM layer. Contacts gain a n
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Database & Models | 0/TBD | Not started | - |
-| 2. Stage CRUD API | 0/TBD | Not started | - |
+| 1. Database & Models | 1/1 | Complete | 2026-04-10 |
+| 2. Stage CRUD API | 0/1 | Planned | - |
 | 3. Stats API | 0/TBD | Not started | - |
 | 4. Frontend Infrastructure | 0/TBD | Not started | - |
 | 5. Kanban Board & Drag-Drop | 0/TBD | Not started | - |
 | 6. Stage Management Admin UI | 0/TBD | Not started | - |
 | 7. List View & View Toggle | 0/TBD | Not started | - |
 | 8. Stats Panel & Contact Sidebar | 0/TBD | Not started | - |
-
