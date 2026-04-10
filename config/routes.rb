@@ -244,6 +244,12 @@ Rails.application.routes.draw do
           end
           resources :labels, only: [:index, :show, :create, :update, :destroy]
 
+          resources :pipeline_stages, only: [:index, :show, :create, :update, :destroy] do
+            member do
+              patch :move
+            end
+          end
+
           resources :notifications, only: [:index, :update, :destroy] do
             collection do
               post :read_all
