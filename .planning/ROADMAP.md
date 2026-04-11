@@ -97,7 +97,11 @@ Plans:
   5. Dragging a card to another column updates `pipeline_stage_id` via API; dragging from Unassigned assigns the contact to that stage
   6. Drag is optimistic: the card moves immediately; on API failure it reverts and shows a toast error
   7. Both mouse and touch drag inputs work
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] .planning/phases/05-kanban-board-drag-drop/05-01-PLAN.md -- Kanban UI components (KanbanCard, StageColumn, KanbanBoard)
+- [ ] .planning/phases/05-kanban-board-drag-drop/05-02-PLAN.md -- Store integration, data loading, drag-drop wire-up
 
 
 ---
@@ -156,7 +160,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 2. Stage CRUD API | 0/1 | Planned | - |
 | 3. Stats API | 1/1 | Complete   | 2026-04-11 |
 | 4. Frontend Infrastructure | 0/TBD | Not started | - |
-| 5. Kanban Board & Drag-Drop | 0/TBD | Not started | - |
+| 5. Kanban Board & Drag-Drop | 0/2 | Planned | - |
 | 6. Stage Management Admin UI | 0/TBD | Not started | - |
 | 7. List View & View Toggle | 0/TBD | Not started | - |
 | 8. Stats Panel & Contact Sidebar | 0/TBD | Not started | - |
