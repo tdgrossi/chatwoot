@@ -12,7 +12,7 @@ This roadmap extends Chatwoot with a pipeline-first CRM layer. Contacts gain a n
 
 - [ ] **Phase 1: Database & Models** -- Contact `pipeline_stage_id` FK, Pipeline & PipelineStage models, account auto-creation
 - [ ] **Phase 2: Stage CRUD API** -- RESTful API for stage management (list, create, update, delete, move up/down)
-- [ ] **Phase 3: Stats API** -- Per-stage contact counts endpoint
+- [x] **Phase 3: Stats API** -- Per-stage contact counts endpoint (completed 2026-04-11)
 - [ ] **Phase 4: Frontend Infrastructure** -- Pinia stores, API clients, `/accounts/:accountId/leads` route
 - [ ] **Phase 5: Kanban Board & Drag-Drop** -- Kanban view with stage columns, draggable cards, and unassigned column
 - [ ] **Phase 6: Stage Management Admin UI** -- Create, edit, delete, and reorder stages in-app
@@ -154,7 +154,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 |-------|----------------|--------|-----------|
 | 1. Database & Models | 1/1 | Complete | 2026-04-10 |
 | 2. Stage CRUD API | 0/1 | Planned | - |
-| 3. Stats API | 0/TBD | Not started | - |
+| 3. Stats API | 1/1 | Complete   | 2026-04-11 |
 | 4. Frontend Infrastructure | 0/TBD | Not started | - |
 | 5. Kanban Board & Drag-Drop | 0/TBD | Not started | - |
 | 6. Stage Management Admin UI | 0/TBD | Not started | - |
