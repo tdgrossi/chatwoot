@@ -16,7 +16,7 @@ class Api::V1::Accounts::PipelineStatsController < Api::V1::Accounts::BaseContro
     return JSON.parse(cached) if cached.present?
 
     stats = build_stats
-    Redis::Alfred.setex(cache_key, 60, stats.to_json)
+    Redis::Alfred.setex(cache_key, stats.to_json, 60)
     stats
   end
 
