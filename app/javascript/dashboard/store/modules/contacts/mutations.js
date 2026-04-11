@@ -61,6 +61,18 @@ export const mutations = {
     $state.records[data.id] = data;
   },
 
+  [types.SET_CONTACTS_BY_STAGE]: ($state, data) => {
+    data.forEach(contact => {
+      $state.records[contact.id] = {
+        ...($state.records[contact.id] || {}),
+        ...contact,
+      };
+      if (!$state.sortOrder.includes(contact.id)) {
+        $state.sortOrder.push(contact.id);
+      }
+    });
+  },
+
   [types.DELETE_CONTACT]: ($state, id) => {
     const index = $state.sortOrder.findIndex(item => item === id);
     $state.sortOrder.splice(index, 1);

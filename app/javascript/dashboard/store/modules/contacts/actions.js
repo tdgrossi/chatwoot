@@ -300,6 +300,22 @@ export const actions = {
     return [];
   },
 
+  fetchByStage: async ({ commit }, { stageId, page = 1, sortAttr = 'name' }) => {
+    commit(types.SET_CONTACT_UI_FLAG, { isFetching: true });
+    try {
+      const {
+        data: { payload, meta },
+      } = await ContactAPI.filter(page, sortAttr, {
+        pipeline_stage_id: stageId,
+      });
+      commit(types.SET_CONTACTS_BY_STAGE, payload);
+      commit(types.SET_CONTACT_META, meta);
+      commit(types.SET_CONTACT_UI_FLAG, { isFetching: false });
+    } catch (error) {
+      commit(types.SET_CONTACT_UI_FLAG, { isFetching: false });
+    }
+  },
+
   setContactFilters({ commit }, data) {
     commit(types.SET_CONTACT_FILTERS, data);
   },
