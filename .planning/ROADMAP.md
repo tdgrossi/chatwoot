@@ -148,9 +148,10 @@ Plans:
   1. A stats panel at the top of the CRM dashboard shows per-stage contact counts, total contacts, and contacts added today, using data from `pipeline_stats`
   2. The contact detail sidebar displays a "Pipeline Stage" dropdown listing all available stages (plus an unassigned option)
   3. Changing the stage dropdown updates `pipeline_stage_id` via API and reflects immediately in the Kanban board
-**Plans**: TBD
+**Plans**: 1 plan
 
-
+Plans:
+- [ ] .planning/phases/08-stats-panel-contact-sidebar/08-01-PLAN.md — PipelineStatsPanel, ContactSidebar, LeadsIndex wiring with sync fix
 
 ---
 
@@ -168,4 +169,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 5. Kanban Board & Drag-Drop | 0/2 | Planned | - |
 | 6. Stage Management Admin UI | 1/1 | Complete | 2026-04-12 |
 | 7. List View & View Toggle | 1/1 | Planned | - |
-| 8. Stats Panel & Contact Sidebar | 0/TBD | Not started | - |
+| 8. Stats Panel & Contact Sidebar | 0/1 | Planned | - |
