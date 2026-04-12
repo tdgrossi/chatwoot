@@ -6,6 +6,8 @@ class CacheEnabledApiClient extends ApiClient {
   constructor(resource, options = {}) {
     super(resource, options);
     this.dataManager = new DataManager(this.accountIdFromRoute);
+    // eslint-disable-next-line vue/prop-name-casing
+    this.cacheKeysReq = null;
   }
 
   // eslint-disable-next-line class-methods-use-this
@@ -43,9 +45,13 @@ class CacheEnabledApiClient extends ApiClient {
       return this.getFromNetwork();
     }
 
-    const { data } = await axios.get(
-      `/api/v1/accounts/${this.accountIdFromRoute}/cache_keys`
-    );
+    // Memoize cache_keys API call to avoid redundant requests during parallel cache checks
+    if (!this.cacheKeysReq) {
+      this.cacheKeysReq = axios.get(
+        `/api/v1/accounts/${this.accountIdFromRoute}/cache_keys`
+      );
+    }
+    const { data } = await this.cacheKeysReq;
     const cacheKeyFromApi = data.cache_keys[this.cacheModelName];
     const isCacheValid = await this.validateCacheKey(cacheKeyFromApi);
 
