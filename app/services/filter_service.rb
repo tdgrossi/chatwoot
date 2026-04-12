@@ -186,6 +186,8 @@ class FilterService
   end
 
   def validate_query_operator
+    return if @params[:payload].nil?
+
     @params[:payload].each do |query_hash|
       validate_single_condition(query_hash)
     end
