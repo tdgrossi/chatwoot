@@ -1,0 +1,481 @@
+- generic [ref=e4]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - img [ref=e9]
+        - button "Acme Org" [ref=e12] [cursor=pointer]:
+          - generic [ref=e13]: Acme Org
+      - generic [ref=e15]:
+        - link "Search..." [ref=e16] [cursor=pointer]:
+          - /url: /app/accounts/2/search
+          - generic [ref=e18]: Search...
+        - button [ref=e20] [cursor=pointer]
+    - navigation [ref=e22]:
+      - list [ref=e23]:
+        - listitem [ref=e24] [cursor=pointer]:
+          - button "My Inbox" [ref=e25]:
+            - generic [ref=e29]: My Inbox
+        - listitem [ref=e30] [cursor=pointer]:
+          - button "Conversations" [ref=e31]:
+            - generic [ref=e35]: Conversations
+        - listitem [ref=e47] [cursor=pointer]:
+          - button "Captain" [ref=e48]:
+            - generic [ref=e52]: Captain
+        - listitem [ref=e53] [cursor=pointer]:
+          - button "Contacts" [ref=e54]:
+            - generic [ref=e58]: Contacts
+          - list [ref=e166]:
+            - listitem [ref=e167]:
+              - link "All Contacts" [ref=e168]:
+                - /url: /app/accounts/2/contacts?page=1
+                - generic [ref=e169]: All Contacts
+            - listitem [ref=e170]:
+              - link "Active" [ref=e171]:
+                - /url: /app/accounts/2/contacts/active
+                - generic [ref=e172]: Active
+        - listitem [ref=e59] [cursor=pointer]:
+          - button "Reports" [ref=e60]:
+            - generic [ref=e64]: Reports
+        - listitem [ref=e65] [cursor=pointer]:
+          - button "Campaigns" [ref=e66]:
+            - generic [ref=e70]: Campaigns
+        - listitem [ref=e71] [cursor=pointer]:
+          - button "Help Center" [ref=e72]:
+            - generic [ref=e76]: Help Center
+        - listitem [ref=e77] [cursor=pointer]:
+          - button "Settings" [ref=e78]:
+            - generic [ref=e82]: Settings
+    - button "John john@acme.inc" [ref=e86] [cursor=pointer]:
+      - img [ref=e89]:
+        - generic [ref=e90]: J
+      - generic [ref=e91]:
+        - generic [ref=e92]: John
+        - generic [ref=e93]: john@acme.inc
+  - main [ref=e96]:
+    - generic [ref=e175]:
+      - generic [ref=e177]:
+        - generic [ref=e178]: Contacts
+        - generic [ref=e179]:
+          - searchbox "Search..." [ref=e183]
+          - generic [ref=e184]:
+            - generic [ref=e185]:
+              - button [ref=e187] [cursor=pointer]
+              - button [ref=e190] [cursor=pointer]
+              - button [ref=e193] [cursor=pointer]
+            - button "Message" [ref=e197] [cursor=pointer]:
+              - generic [ref=e198]: Message
+      - main [ref=e199]:
+        - generic [ref=e202]:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - img:
+                            - generic: CM
+                      - generic:
+                        - generic:
+                          - generic: Candice Matherson
+                          - generic:
+                            - generic: Lumora
+                        - generic:
+                          - generic "candice.matherson@lumora.com"
+                          - generic: "+14155552671"
+                          - generic: Los Angeles, United States
+                          - button "View details":
+                            - generic: View details
+                    - button
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Edit contact details
+                            - generic:
+                              - generic:
+                                - textbox "Enter the first name": Candice
+                              - generic:
+                                - textbox "Enter the last name": Matherson
+                              - generic:
+                                - textbox "Enter the email address": candice.matherson@lumora.com
+                              - generic:
+                                - generic:
+                                  - generic:
+                                    - generic:
+                                      - button "🇺🇸":
+                                        - generic: 🇺🇸
+                                      - generic: "+1"
+                                    - textbox "Enter the phone number": "4155552671"
+                              - generic:
+                                - textbox "Enter the city name": Los Angeles
+                              - generic:
+                                - generic:
+                                  - button "United States":
+                                    - generic: United States
+                              - generic:
+                                - textbox "Enter the bio": I'm Candice, a developer focusing on building web solutions. Currently, I’m working as a Product Developer at Lumora.
+                              - generic:
+                                - textbox "Enter the company name": Lumora
+                          - generic:
+                            - generic: Edit social links
+                            - generic:
+                              - generic:
+                                - textbox "Add LinkedIn": candice-matherson
+                              - generic:
+                                - textbox "Add Facebook": candice.dev
+                              - generic:
+                                - textbox "Add Instagram": candice.codes
+                              - generic:
+                                - textbox "Add Telegram"
+                              - generic:
+                                - textbox "Add TikTok"
+                              - generic:
+                                - textbox "Add Twitter": candice_w_dev
+                              - generic:
+                                - textbox "Add Github": candice-dev
+                        - generic:
+                          - button "Update contact":
+                            - generic: Update contact
+                      - generic:
+                        - generic:
+                          - button "Delete contact":
+                            - generic: Delete contact
+                          - generic:
+                            - generic:
+                              - generic:
+                                - text: This action is permanent and irreversible.
+                                - button "Delete now":
+                                  - generic: Delete now
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - img:
+                            - generic: OF
+                      - generic:
+                        - generic:
+                          - generic: Ophelia Folkard
+                          - generic:
+                            - generic: Designify
+                        - generic:
+                          - generic "ophelia.folkard@designify.com"
+                          - generic: "+14155552672"
+                          - generic: San Francisco, United States
+                          - button "View details":
+                            - generic: View details
+                    - button
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Edit contact details
+                            - generic:
+                              - generic:
+                                - textbox "Enter the first name": Ophelia
+                              - generic:
+                                - textbox "Enter the last name": Folkard
+                              - generic:
+                                - textbox "Enter the email address": ophelia.folkard@designify.com
+                              - generic:
+                                - generic:
+                                  - generic:
+                                    - generic:
+                                      - button "🇺🇸":
+                                        - generic: 🇺🇸
+                                      - generic: "+1"
+                                    - textbox "Enter the phone number": "4155552672"
+                              - generic:
+                                - textbox "Enter the city name": San Francisco
+                              - generic:
+                                - generic:
+                                  - button "United States":
+                                    - generic: United States
+                              - generic:
+                                - textbox "Enter the bio": Passionate about design and user experience.
+                              - generic:
+                                - textbox "Enter the company name": Designify
+                          - generic:
+                            - generic: Edit social links
+                            - generic:
+                              - generic:
+                                - textbox "Add LinkedIn": ophelia-folkard
+                              - generic:
+                                - textbox "Add Facebook": ophelia.folkard
+                              - generic:
+                                - textbox "Add Instagram": ophelia.design
+                              - generic:
+                                - textbox "Add Telegram"
+                              - generic:
+                                - textbox "Add TikTok"
+                              - generic:
+                                - textbox "Add Twitter": oph_designs
+                              - generic:
+                                - textbox "Add Github": ophelia-folkard
+                        - generic:
+                          - button "Update contact":
+                            - generic: Update contact
+                      - generic:
+                        - generic:
+                          - button "Delete contact":
+                            - generic: Delete contact
+                          - generic:
+                            - generic:
+                              - generic:
+                                - text: This action is permanent and irreversible.
+                                - button "Delete now":
+                                  - generic: Delete now
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - img:
+                            - generic: WC
+                      - generic:
+                        - generic:
+                          - generic: Willy Castelot
+                          - generic:
+                            - generic: CodeHub
+                        - generic:
+                          - generic "willy.castelot@codehub.io"
+                          - generic: "+14155552673"
+                          - generic: Austin, United States
+                          - button "View details":
+                            - generic: View details
+                    - button
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Edit contact details
+                            - generic:
+                              - generic:
+                                - textbox "Enter the first name": Willy
+                              - generic:
+                                - textbox "Enter the last name": Castelot
+                              - generic:
+                                - textbox "Enter the email address": willy.castelot@codehub.io
+                              - generic:
+                                - generic:
+                                  - generic:
+                                    - generic:
+                                      - button "🇺🇸":
+                                        - generic: 🇺🇸
+                                      - generic: "+1"
+                                    - textbox "Enter the phone number": "4155552673"
+                              - generic:
+                                - textbox "Enter the city name": Austin
+                              - generic:
+                                - generic:
+                                  - button "United States":
+                                    - generic: United States
+                              - generic:
+                                - textbox "Enter the bio": Avid coder and tech enthusiast.
+                              - generic:
+                                - textbox "Enter the company name": CodeHub
+                          - generic:
+                            - generic: Edit social links
+                            - generic:
+                              - generic:
+                                - textbox "Add LinkedIn": willy-castelot
+                              - generic:
+                                - textbox "Add Facebook": willy.castelot
+                              - generic:
+                                - textbox "Add Instagram": willy.coder
+                              - generic:
+                                - textbox "Add Telegram"
+                              - generic:
+                                - textbox "Add TikTok"
+                              - generic:
+                                - textbox "Add Twitter": willy_code
+                              - generic:
+                                - textbox "Add Github": willy_castelot
+                        - generic:
+                          - button "Update contact":
+                            - generic: Update contact
+                      - generic:
+                        - generic:
+                          - button "Delete contact":
+                            - generic: Delete contact
+                          - generic:
+                            - generic:
+                              - generic:
+                                - text: This action is permanent and irreversible.
+                                - button "Delete now":
+                                  - generic: Delete now
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - img:
+                            - generic: ED
+                      - generic:
+                        - generic:
+                          - generic: Elisabeth Derington
+                          - generic:
+                            - generic: InnovaTech
+                        - generic:
+                          - generic "elisabeth.derington@innova.com"
+                          - generic: "+14155552674"
+                          - generic: Seattle, United States
+                          - button "View details":
+                            - generic: View details
+                    - button
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Edit contact details
+                            - generic:
+                              - generic:
+                                - textbox "Enter the first name": Elisabeth
+                              - generic:
+                                - textbox "Enter the last name": Derington
+                              - generic:
+                                - textbox "Enter the email address": elisabeth.derington@innova.com
+                              - generic:
+                                - generic:
+                                  - generic:
+                                    - generic:
+                                      - button "🇺🇸":
+                                        - generic: 🇺🇸
+                                      - generic: "+1"
+                                    - textbox "Enter the phone number": "4155552674"
+                              - generic:
+                                - textbox "Enter the city name": Seattle
+                              - generic:
+                                - generic:
+                                  - button "United States":
+                                    - generic: United States
+                              - generic:
+                                - textbox "Enter the bio": Product manager with a love for innovation.
+                              - generic:
+                                - textbox "Enter the company name": InnovaTech
+                          - generic:
+                            - generic: Edit social links
+                            - generic:
+                              - generic:
+                                - textbox "Add LinkedIn": elisabeth-derington
+                              - generic:
+                                - textbox "Add Facebook": elisabeth.derington
+                              - generic:
+                                - textbox "Add Instagram": elisabeth.innovates
+                              - generic:
+                                - textbox "Add Telegram"
+                              - generic:
+                                - textbox "Add TikTok"
+                              - generic:
+                                - textbox "Add Twitter": elisabeth_innova
+                              - generic:
+                                - textbox "Add Github": elisabeth-d
+                        - generic:
+                          - button "Update contact":
+                            - generic: Update contact
+                      - generic:
+                        - generic:
+                          - button "Delete contact":
+                            - generic: Delete contact
+                          - generic:
+                            - generic:
+                              - generic:
+                                - text: This action is permanent and irreversible.
+                                - button "Delete now":
+                                  - generic: Delete now
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - img:
+                            - generic: OO
+                      - generic:
+                        - generic:
+                          - generic: Olia Olenchenko
+                          - generic:
+                            - generic: Contently
+                        - generic:
+                          - generic "olia.olenchenko@contently.com"
+                          - generic: "+14155552675"
+                          - generic: Chicago, United States
+                          - button "View details":
+                            - generic: View details
+                    - button
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic: Edit contact details
+                            - generic:
+                              - generic:
+                                - textbox "Enter the first name": Olia
+                              - generic:
+                                - textbox "Enter the last name": Olenchenko
+                              - generic:
+                                - textbox "Enter the email address": olia.olenchenko@contently.com
+                              - generic:
+                                - generic:
+                                  - generic:
+                                    - generic:
+                                      - button "🇺🇸":
+                                        - generic: 🇺🇸
+                                      - generic: "+1"
+                                    - textbox "Enter the phone number": "4155552675"
+                              - generic:
+                                - textbox "Enter the city name": Chicago
+                              - generic:
+                                - generic:
+                                  - button "United States":
+                                    - generic: United States
+                              - generic:
+                                - textbox "Enter the bio": Marketing specialist and content creator.
+                              - generic:
+                                - textbox "Enter the company name": Contently
+                          - generic:
+                            - generic: Edit social links
+                            - generic:
+                              - generic:
+                                - textbox "Add LinkedIn": olia-olenchenko
+                              - generic:
+                                - textbox "Add Facebook": olia.olenchenko
+                              - generic:
+                                - textbox "Add Instagram": olia.creates
+                              - generic:
+                                - textbox "Add Telegram"
+                              - generic:
+                                - textbox "Add TikTok"
+                              - generic:
+                                - textbox "Add Twitter": olia_content
+                              - generic:
+                                - textbox "Add Github": olia-olenchenko
+                        - generic:
+                          - button "Update contact":
+                            - generic: Update contact
+                      - generic:
+                        - generic:
+                          - button "Delete contact":
+                            - generic: Delete contact
+                          - generic:
+                            - generic:
+                              - generic:
+                                - text: This action is permanent and irreversible.
+                                - button "Delete now":
+                                  - generic: Delete now
+          - generic [ref=e204]:
+            - generic [ref=e205]:
+              - heading "No contacts found in this account" [level=2] [ref=e206]
+              - paragraph [ref=e207]: Start adding new contacts by clicking on the button below
+            - button "Add contact" [ref=e210] [cursor=pointer]:
+              - generic [ref=e212]: Add contact

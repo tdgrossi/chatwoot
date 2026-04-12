@@ -3,17 +3,21 @@
 # Table name: pipeline_stages
 #
 #  id         :bigint           not null, primary key
+#  color      :string
 #  name       :string           not null
 #  position   :integer          not null
-#  color      :string
-#  account_id :bigint           not null
 #  created_at :datetime         not null
 #  updated_at :datetime         not null
+#  account_id :bigint           not null
 #
 # Indexes
 #
-#  index_pipeline_stages_on_account_id          (account_id)
-#  index_pipeline_stages_on_account_id_position (account_id, position)
+#  index_pipeline_stages_on_account_id               (account_id)
+#  index_pipeline_stages_on_account_id_and_position  (account_id,position) UNIQUE
+#
+# Foreign Keys
+#
+#  fk_rails_...  (account_id => accounts.id)
 #
 
 class PipelineStage < ApplicationRecord

@@ -68,6 +68,9 @@ gem 'redis-namespace'
 # super fast record imports in bulk
 gem 'activerecord-import'
 
+# list position management for pipeline stages
+gem 'acts_as_list'
+
 gem 'searchkick'
 gem 'opensearch-ruby'
 gem 'faraday_middleware-aws-sigv4'

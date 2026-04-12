@@ -1,5 +1,10 @@
 version: '3'
 
+x-bundle-cache: &bundle-cache
+  type: bind
+  source: ./vendor/bundle
+  target: /usr/local/bundle
+
 services:
   base: &base
     build:
@@ -26,7 +31,7 @@ services:
       - node_modules:/app/node_modules
       - packs:/app/public/packs
       - cache:/app/tmp/cache
-      - bundle:/usr/local/bundle
+      - <<: *bundle-cache
     depends_on:
       - postgres
       - redis
@@ -40,6 +45,8 @@ services:
       - VITE_DEV_SERVER_HOST=vite
       - NODE_ENV=development
       - RAILS_ENV=development
+      - DISABLE_MINI_PROFILER=true
+      - POSTGRES_DATABASE=chatwoot
     entrypoint: docker/entrypoints/rails.sh
     command: ["bundle", "exec", "rails", "s", "-p", "3000", "-b", "0.0.0.0"]
 
@@ -51,7 +58,7 @@ services:
       - node_modules:/app/node_modules
       - packs:/app/public/packs
       - cache:/app/tmp/cache
-      - bundle:/usr/local/bundle
+      - <<: *bundle-cache
     depends_on:
       - postgres
       - redis
@@ -72,7 +79,7 @@ services:
       - node_modules:/app/node_modules
       - packs:/app/public/packs
       - cache:/app/tmp/cache
-      - bundle:/usr/local/bundle
+      - <<: *bundle-cache
     ports:
       - "3036:3036" # Vite dev server
     environment:
@@ -91,7 +98,7 @@ services:
       - postgres:/data/postgres
     environment:
       - POSTGRES_DB=chatwoot
-      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_USER=${POSTGRES_USERNAME}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
   redis:
