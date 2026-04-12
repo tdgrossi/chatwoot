@@ -116,8 +116,10 @@ Plans:
   3. A create form accepts a stage name and color picker, then appends the new stage via the API
   4. Delete shows a confirmation dialog; contacts are moved to unassigned on confirm
   5. Up/Down buttons on each row reorder stages via the move API endpoint
-**Plans**: TBD
+**Plans**: 1 plan
 
+Plans:
+- [ ] .planning/phases/06-stage-management-admin-ui/06-01-PLAN.md -- StageManagementModal.vue, StageFormDialog.vue, and LeadsIndex button wiring
 
 ---
 
@@ -161,6 +163,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 3. Stats API | 1/1 | Complete   | 2026-04-11 |
 | 4. Frontend Infrastructure | 0/TBD | Not started | - |
 | 5. Kanban Board & Drag-Drop | 0/2 | Planned | - |
-| 6. Stage Management Admin UI | 0/TBD | Not started | - |
+| 6. Stage Management Admin UI | 0/1 | Planned | - |
 | 7. List View & View Toggle | 0/TBD | Not started | - |
 | 8. Stats Panel & Contact Sidebar | 0/TBD | Not started | - |
