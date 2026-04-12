@@ -7,6 +7,7 @@ import { useAdmin } from 'dashboard/composables/useAdmin';
 import KanbanBoard from 'dashboard/components/kanban/KanbanBoard.vue';
 import StageManagementModal from 'dashboard/components/pipeline/StageManagementModal.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
+import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
 
 const pipelineStore = usePipelineStore();
 const store = useStore();
@@ -194,61 +195,379 @@ const handleCardClick = contact => {
   // eslint-disable-next-line no-console
   console.log('Contact clicked:', contact.id, contact.name);
 };
+
+// View toggle state (default to kanban per D-05)
+const currentView = localStorage.getItem('crm_pipeline_view') || 'kanban';
+const activeView = ref(currentView);
+
+// Stage filter state (default to 'all')
+const activeFilter = ref('all');
+
+// Sort state (default: name asc per D-07)
+const sortKey = ref('name');
+const sortOrder = ref('asc');
+
+const setView = view => {
+  localStorage.setItem('crm_pipeline_view', view);
+  activeView.value = view;
+};
+
+const stageFilterOptions = computed(() => {
+  const options = [
+    { action: 'filter', value: 'all', label: 'All stages', isSelected: activeFilter.value === 'all' },
+    { action: 'filter', value: 'unassigned', label: 'Unassigned', isSelected: activeFilter.value === 'unassigned' },
+  ];
+  orderedStages.value.forEach(stage => {
+    options.push({
+      action: 'filter',
+      value: stage.id,
+      label: stage.name,
+      isSelected: activeFilter.value === stage.id,
+    });
+  });
+  return options;
+});
+
+const activeFilterLabel = computed(() => {
+  if (activeFilter.value === 'all') return 'All stages';
+  if (activeFilter.value === 'unassigned') return 'Unassigned';
+  const stage = orderedStages.value.find(s => s.id === activeFilter.value);
+  return stage ? stage.name : 'All stages';
+});
+
+const handleFilterChange = ({ action, value }) => {
+  if (action === 'filter') {
+    activeFilter.value = value;
+  }
+};
+
+const filteredContacts = computed(() => {
+  const all = Object.values(contactsMap.value);
+  if (activeFilter.value === 'all') return all;
+  if (activeFilter.value === 'unassigned') {
+    return all.filter(c => !c.pipeline_stage_id);
+  }
+  return all.filter(c => String(c.pipeline_stage_id) === String(activeFilter.value));
+});
+
+const sortedContacts = computed(() => {
+  const contacts = [...filteredContacts.value];
+  if (!sortKey.value) return contacts;
+  return contacts.sort((a, b) => {
+    const aVal = a[sortKey.value] || '';
+    const bVal = b[sortKey.value] || '';
+    const cmp = String(aVal).localeCompare(String(bVal));
+    return sortOrder.value === 'asc' ? cmp : -cmp;
+  });
+});
+
+const toggleSort = key => {
+  if (sortKey.value === key) {
+    if (sortOrder.value === 'asc') sortOrder.value = 'desc';
+    else if (sortOrder.value === 'desc') {
+      sortKey.value = null;
+      sortOrder.value = null;
+    }
+  } else {
+    sortKey.value = key;
+    sortOrder.value = 'asc';
+  }
+};
+
+const handleRowClick = contact => {
+  // TODO: Phase 8 - open contact detail sidebar
+  // eslint-disable-next-line no-console
+  console.log('Open contact detail:', contact.id, contact.name);
+};
+
+const getStageName = stageId => {
+  if (!stageId) return null;
+  const stagesById = pipelineStore.getStagesById;
+  return stagesById[stageId]?.name || null;
+};
+
+const getStageColor = stageId => {
+  if (!stageId) return null;
+  const stagesById = pipelineStore.getStagesById;
+  return stagesById[stageId]?.color || null;
+};
+
+const formatDate = dateStr => {
+  if (!dateStr) return '—';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+  if (diffDays < 7) {
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    return `${diffDays}d ago`;
+  }
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
 </script>
 
 <template>
   <div class="leads-index">
-    <!-- Header with Manage Stages button -->
+    <!-- Header with page title, filter, view toggle, and manage stages -->
     <div class="flex items-center justify-between px-4 py-3 border-b border-n-weak">
       <h1 class="text-base font-semibold text-n-slate-12">Pipeline</h1>
-      <Button
-        v-if="isAdmin"
-        label="Manage Stages"
-        icon="i-lucide-settings"
-        variant="outline"
-        color="slate"
-        size="sm"
-        @click="showManageStages = true"
-      />
-    </div>
+      <div class="flex items-center gap-2">
+        <!-- Stage Filter Dropdown -->
+        <DropdownMenu
+          :menu-items="stageFilterOptions"
+          position="bottom-end"
+          @action="handleFilterChange"
+        >
+          <template #trigger>
+            <Button
+              variant="outline"
+              color="slate"
+              size="sm"
+              icon="i-lucide-filter"
+              :label="activeFilterLabel"
+            />
+          </template>
+        </DropdownMenu>
 
-    <!-- Loading state -->
-    <div v-if="isLoading" class="p-4">
-      <div class="kanban-board flex gap-4">
-        <!-- Skeleton for unassigned column -->
-        <div class="flex-shrink-0 w-70">
-          <div class="flex items-center justify-between px-3 py-2.5 mb-2 rounded-t-lg bg-n-alpha-1">
-            <div class="h-4 w-24 bg-n-slate-3 rounded animate-pulse" />
-            <div class="h-5 w-5 bg-n-slate-3 rounded-full animate-pulse" />
-          </div>
-          <div class="flex flex-col gap-2 p-1">
-            <div v-for="i in 3" :key="i" class="h-14 bg-n-slate-3 rounded-lg animate-pulse" />
-          </div>
+        <!-- View Toggle Button Group -->
+        <div class="flex gap-0 rounded-lg border border-n-weak overflow-hidden">
+          <!-- Kanban toggle -->
+          <Button
+            ghost
+            color="slate"
+            size="sm"
+            icon="i-lucide-columns"
+            :class="{ '!bg-n-brand !text-white': activeView === 'kanban' }"
+            class="!rounded-none"
+            aria-label="Kanban view"
+            :aria-pressed="activeView === 'kanban'"
+            @click="setView('kanban')"
+          />
+          <!-- List toggle -->
+          <Button
+            ghost
+            color="slate"
+            size="sm"
+            icon="i-lucide-list"
+            :class="{ '!bg-n-brand !text-white': activeView === 'list' }"
+            class="!rounded-none"
+            aria-label="List view"
+            :aria-pressed="activeView === 'list'"
+            @click="setView('list')"
+          />
         </div>
-        <!-- Skeleton for stage columns -->
-        <div v-for="i in 2" :key="i" class="flex-shrink-0 w-70">
-          <div class="flex items-center justify-between px-3 py-2.5 mb-2 rounded-t-lg bg-n-alpha-1">
-            <div class="h-4 w-32 bg-n-slate-3 rounded animate-pulse" />
-            <div class="h-5 w-5 bg-n-slate-3 rounded-full animate-pulse" />
-          </div>
-          <div class="flex flex-col gap-2 p-1">
-            <div v-for="j in 2" :key="j" class="h-14 bg-n-slate-3 rounded-lg animate-pulse" />
-          </div>
-        </div>
+
+        <!-- Manage Stages button (admin only) -->
+        <Button
+          v-if="isAdmin"
+          label="Manage Stages"
+          icon="i-lucide-settings"
+          variant="outline"
+          color="slate"
+          size="sm"
+          @click="showManageStages = true"
+        />
       </div>
     </div>
 
-    <!-- Kanban board -->
-    <KanbanBoard
-      v-else
-      :stages="orderedStages"
-      :contacts-by-stage="stageContacts"
-      :unassigned-contacts="unassignedContacts"
-      :unassigned-count="unassignedCount"
-      :is-loading="isLoading"
-      @drop="handleDrop"
-      @card-click="handleCardClick"
-    />
+    <!-- Kanban board or List view based on activeView -->
+    <template v-if="activeView === 'kanban'">
+      <template v-if="isLoading">
+        <div class="p-4">
+          <div class="kanban-board flex gap-4">
+            <!-- Skeleton for unassigned column -->
+            <div class="flex-shrink-0 w-70">
+              <div class="flex items-center justify-between px-3 py-2.5 mb-2 rounded-t-lg bg-n-alpha-1">
+                <div class="h-4 w-24 bg-n-slate-3 rounded animate-pulse" />
+                <div class="h-5 w-5 bg-n-slate-3 rounded-full animate-pulse" />
+              </div>
+              <div class="flex flex-col gap-2 p-1">
+                <div v-for="i in 3" :key="i" class="h-14 bg-n-slate-3 rounded-lg animate-pulse" />
+              </div>
+            </div>
+            <!-- Skeleton for stage columns -->
+            <div v-for="i in 2" :key="i" class="flex-shrink-0 w-70">
+              <div class="flex items-center justify-between px-3 py-2.5 mb-2 rounded-t-lg bg-n-alpha-1">
+                <div class="h-4 w-32 bg-n-slate-3 rounded animate-pulse" />
+                <div class="h-5 w-5 bg-n-slate-3 rounded-full animate-pulse" />
+              </div>
+              <div class="flex flex-col gap-2 p-1">
+                <div v-for="j in 2" :key="j" class="h-14 bg-n-slate-3 rounded-lg animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <KanbanBoard
+        v-else
+        :stages="orderedStages"
+        :contacts-by-stage="stageContacts"
+        :unassigned-contacts="unassignedContacts"
+        :unassigned-count="unassignedCount"
+        :is-loading="isLoading"
+        @drop="handleDrop"
+        @card-click="handleCardClick"
+      />
+    </template>
+
+    <!-- List view -->
+    <template v-else-if="activeView === 'list'">
+      <div v-if="isLoading" class="p-4">
+        <!-- Loading skeleton rows -->
+        <table class="min-w-full table-auto">
+          <thead class="border-t border-n-weak bg-n-alpha-1">
+            <tr>
+              <th v-for="(header, i) in ['Name', 'Email', 'Phone', 'Stage', 'Last Activity', 'Created At']" :key="i" class="py-4 ltr:pr-4 rtl:pl-4 text-start text-xs font-semibold text-n-slate-12 uppercase tracking-wide">Loading...</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="i in 5" :key="i" class="border-b border-n-weak">
+              <td class="py-3 px-4"><div class="h-4 w-32 bg-n-slate-3 rounded animate-pulse" /></td>
+              <td class="py-3 px-4"><div class="h-4 w-40 bg-n-slate-3 rounded animate-pulse" /></td>
+              <td class="py-3 px-4"><div class="h-4 w-24 bg-n-slate-3 rounded animate-pulse" /></td>
+              <td class="py-3 px-4"><div class="h-4 w-20 bg-n-slate-3 rounded animate-pulse" /></td>
+              <td class="py-3 px-4"><div class="h-4 w-24 bg-n-slate-3 rounded animate-pulse" /></td>
+              <td class="py-3 px-4"><div class="h-4 w-20 bg-n-slate-3 rounded animate-pulse" /></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Actual list table -->
+      <div v-else class="overflow-auto" style="height: calc(100vh - 10rem);">
+        <table class="min-w-full table-auto divide-y divide-n-weak">
+          <thead class="border-t border-n-weak bg-n-alpha-1 sticky top-0 z-10">
+            <tr>
+              <!-- Name column (sortable) -->
+              <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
+                <button
+                  class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide flex items-center gap-1 hover:text-n-brand transition-colors"
+                  @click="toggleSort('name')"
+                >
+                  Name
+                  <span v-if="sortKey === 'name'" class="i-lucide-chevrons-up-down text-n-slate-9 size-3" />
+                  <span v-else class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-40" />
+                </button>
+              </th>
+              <!-- Email column (sortable) -->
+              <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
+                <button
+                  class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide flex items-center gap-1 hover:text-n-brand transition-colors"
+                  @click="toggleSort('email')"
+                >
+                  Email
+                  <span v-if="sortKey === 'email'" class="i-lucide-chevrons-up-down text-n-slate-9 size-3" />
+                  <span v-else class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-40" />
+                </button>
+              </th>
+              <!-- Phone column (not sortable) -->
+              <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
+                <span class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide">Phone</span>
+              </th>
+              <!-- Stage column (sortable) -->
+              <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
+                <button
+                  class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide flex items-center gap-1 hover:text-n-brand transition-colors"
+                  @click="toggleSort('pipeline_stage_id')"
+                >
+                  Stage
+                  <span v-if="sortKey === 'pipeline_stage_id'" class="i-lucide-chevrons-up-down text-n-slate-9 size-3" />
+                  <span v-else class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-40" />
+                </button>
+              </th>
+              <!-- Last Activity column (sortable) -->
+              <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
+                <button
+                  class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide flex items-center gap-1 hover:text-n-brand transition-colors"
+                  @click="toggleSort('last_activity_at')"
+                >
+                  Last Activity
+                  <span v-if="sortKey === 'last_activity_at'" class="i-lucide-chevrons-up-down text-n-slate-9 size-3" />
+                  <span v-else class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-40" />
+                </button>
+              </th>
+              <!-- Created At column (sortable) -->
+              <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
+                <button
+                  class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide flex items-center gap-1 hover:text-n-brand transition-colors"
+                  @click="toggleSort('created_at')"
+                >
+                  Created At
+                  <span v-if="sortKey === 'created_at'" class="i-lucide-chevrons-up-down text-n-slate-9 size-3" />
+                  <span v-else class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-40" />
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-n-weak">
+            <!-- Empty state: truly empty (no contacts at all) -->
+            <tr v-if="Object.keys(contactsMap).length === 0">
+              <td colspan="6" class="py-20 text-center">
+                <div class="flex flex-col items-center justify-center gap-3">
+                  <span class="i-lucide-inbox size-12 text-n-slate-8" />
+                  <h3 class="text-base font-semibold text-n-slate-12">No contacts yet</h3>
+                  <p class="text-sm text-n-slate-11 max-w-xs text-center">Add contacts to your pipeline to see them here.</p>
+                </div>
+              </td>
+            </tr>
+            <!-- Empty state: filtered empty -->
+            <tr v-else-if="sortedContacts.length === 0">
+              <td colspan="6" class="py-20 text-center">
+                <div class="flex flex-col items-center justify-center gap-3">
+                  <span class="i-lucide-filter size-12 text-n-slate-8" />
+                  <h3 class="text-base font-semibold text-n-slate-12">No contacts match your filters</h3>
+                  <p class="text-sm text-n-slate-11 max-w-xs text-center">Try selecting a different stage or clearing the filter.</p>
+                </div>
+              </td>
+            </tr>
+            <!-- Contact rows -->
+            <tr
+              v-else
+              v-for="contact in sortedContacts"
+              :key="contact.id"
+              class="border-b border-n-weak hover:bg-n-alpha-2 cursor-pointer transition-colors"
+              @click="handleRowClick(contact)"
+            >
+              <!-- Name cell -->
+              <td class="py-3 ltr:pr-4 rtl:pl-4">
+                <span class="text-sm font-medium text-n-slate-12 truncate block">{{ contact.name }}</span>
+              </td>
+              <!-- Email cell -->
+              <td class="py-3 ltr:pr-4 rtl:pl-4">
+                <span class="text-sm text-n-slate-11 truncate block">{{ contact.email || '—' }}</span>
+              </td>
+              <!-- Phone cell -->
+              <td class="py-3 ltr:pr-4 rtl:pl-4">
+                <span class="text-sm text-n-slate-11 truncate block">{{ contact.phone_number || '—' }}</span>
+              </td>
+              <!-- Stage cell -->
+              <td class="py-3 ltr:pr-4 rtl:pl-4">
+                <span
+                  v-if="getStageName(contact.pipeline_stage_id)"
+                  class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium text-n-slate-12"
+                  :style="{ backgroundColor: getStageColor(contact.pipeline_stage_id) + '20' }"
+                >
+                  <span
+                    class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    :style="{ backgroundColor: getStageColor(contact.pipeline_stage_id) }"
+                  />
+                  {{ getStageName(contact.pipeline_stage_id) }}
+                </span>
+                <span v-else class="text-xs text-n-slate-11 italic">Unassigned</span>
+              </td>
+              <!-- Last Activity cell -->
+              <td class="py-3 ltr:pr-4 rtl:pl-4">
+                <span class="text-sm text-n-slate-11">{{ formatDate(contact.last_activity_at) }}</span>
+              </td>
+              <!-- Created At cell -->
+              <td class="py-3 ltr:pr-4 rtl:pl-4">
+                <span class="text-sm text-n-slate-11">{{ formatDate(contact.created_at) }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
 
     <!-- Manage Stages modal (admin only) -->
     <StageManagementModal v-model:show="showManageStages" />
