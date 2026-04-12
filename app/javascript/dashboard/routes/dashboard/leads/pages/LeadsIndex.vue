@@ -8,6 +8,8 @@ import KanbanBoard from 'dashboard/components/kanban/KanbanBoard.vue';
 import StageManagementModal from 'dashboard/components/pipeline/StageManagementModal.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import DropdownMenu from 'dashboard/components-next/dropdown-menu/DropdownMenu.vue';
+import PipelineStatsPanel from 'dashboard/components/pipeline/PipelineStatsPanel.vue';
+import ContactSidebar from 'dashboard/components/pipeline/ContactSidebar.vue';
 
 const pipelineStore = usePipelineStore();
 const store = useStore();
@@ -23,6 +25,10 @@ const contactsMap = ref({});
 
 // Contacts grouped by stage id (null = unassigned)
 const contactsByStage = ref({});
+
+// Sidebar state
+const selectedContact = ref(null);
+const isSidebarOpen = ref(false);
 
 // Computed: ordered stages by position
 const orderedStages = computed(() =>
@@ -118,6 +124,82 @@ const fetchUnassignedContacts = async () => {
   }
 };
 
+// Sync LeadsIndex local state after sidebar stage change (critical fix for Pitfall #2)
+// pipelineStore.moveContactToStage() updates store state but LeadsIndex has its own
+// contactsMap and contactsByStage refs. After the store action, we must sync the local
+// refs back so the Kanban/list re-renders correctly.
+const syncContactsAfterStageChange = (contactId, fromStageId, toStageId) => {
+  const updatedContact = pipelineStore.contacts[contactId];
+  if (!updatedContact) return;
+
+  // Update contactsMap with the updated contact from the store
+  contactsMap.value[contactId] = updatedContact;
+
+  // Sync contactsByStage: remove from source, add to destination
+  const fromKey = fromStageId === null ? null : Number(fromStageId);
+  const toKey = toStageId === null ? null : Number(toStageId);
+
+  // Remove from source stage
+  if (fromKey !== null && contactsByStage.value[fromKey]) {
+    contactsByStage.value[fromKey] = contactsByStage.value[fromKey].filter(
+      c => c.id !== contactId
+    );
+  }
+
+  // Add to destination stage
+  if (toKey !== null) {
+    if (!contactsByStage.value[toKey]) {
+      contactsByStage.value[toKey] = [];
+    }
+    // Remove first to avoid duplicates
+    contactsByStage.value[toKey] = contactsByStage.value[toKey].filter(
+      c => c.id !== contactId
+    );
+    contactsByStage.value[toKey].push(updatedContact);
+  }
+
+  // Force Vue reactivity on contactsByStage
+  contactsByStage.value = { ...contactsByStage.value };
+};
+
+// Called when user selects a new stage from the sidebar dropdown.
+// Performs optimistic local update then calls pipelineStore.moveContactToStage().
+// On success: syncs local state back from store (via syncContactsAfterStageChange).
+// On failure: store action reverts + shows toast; we reload to ensure consistency.
+const handleSidebarStageChange = async ({ toStageId }) => {
+  const contact = selectedContact.value;
+  if (!contact) return;
+
+  const fromStageId = contact.pipeline_stage_id;
+
+  // Normalize: null/undefined -> null, stage ids -> Number
+  const normalizedFrom = fromStageId == null ? null : Number(fromStageId);
+  const normalizedTo = toStageId == null ? null : Number(toStageId);
+
+  // Skip if no actual change
+  if (normalizedFrom === normalizedTo) return;
+
+  // Optimistic local update (matches store behavior)
+  contactsMap.value[contact.id] = {
+    ...contact,
+    pipeline_stage_id: normalizedTo,
+  };
+
+  try {
+    await pipelineStore.moveContactToStage({
+      contactId: contact.id,
+      fromStageId: String(normalizedFrom ?? 'unassigned'),
+      toStageId: String(normalizedTo ?? 'unassigned'),
+    });
+    // Sync store state back to LeadsIndex local refs
+    syncContactsAfterStageChange(contact.id, normalizedFrom, normalizedTo);
+  } catch (error) {
+    // Store action handles revert + toast. Reload to ensure consistency.
+    await fetchContactsForAllStages();
+    await fetchUnassignedContacts();
+  }
+};
+
 // Initialize: load stages, then load all contacts grouped by stage
 onMounted(async () => {
   isLoading.value = true;
@@ -182,6 +264,8 @@ const handleDrop = async event => {
       fromStageId: fromKey,
       toStageId: toKey,
     });
+    // Sync store state back to LeadsIndex local refs (Pitfall #2 fix)
+    syncContactsAfterStageChange(contactId, fromNumKey, toNumKey);
   } catch (error) {
     // Store action handles revert + toast; reload contacts to ensure consistency
     await fetchContactsForAllStages();
@@ -189,11 +273,10 @@ const handleDrop = async event => {
   }
 };
 
-// Handle card click (navigate to contact detail)
+// Open contact sidebar on card click
 const handleCardClick = contact => {
-  // TODO: Phase 7/8 - navigate to contact detail
-  // eslint-disable-next-line no-console
-  console.log('Contact clicked:', contact.id, contact.name);
+  selectedContact.value = contact;
+  isSidebarOpen.value = true;
 };
 
 // View toggle state (default to kanban per D-05)
@@ -241,6 +324,11 @@ const handleFilterChange = ({ action, value }) => {
   }
 };
 
+// Handle filter-change event from PipelineStatsPanel
+const handleStatsFilterChange = stageId => {
+  activeFilter.value = stageId;
+};
+
 const filteredContacts = computed(() => {
   const all = Object.values(contactsMap.value);
   if (activeFilter.value === 'all') return all;
@@ -274,10 +362,10 @@ const toggleSort = key => {
   }
 };
 
+// Open contact sidebar on row click
 const handleRowClick = contact => {
-  // TODO: Phase 8 - open contact detail sidebar
-  // eslint-disable-next-line no-console
-  console.log('Open contact detail:', contact.id, contact.name);
+  selectedContact.value = contact;
+  isSidebarOpen.value = true;
 };
 
 const getStageName = stageId => {
@@ -369,6 +457,9 @@ const formatDate = dateStr => {
         />
       </div>
     </div>
+
+    <!-- Pipeline Stats Panel -->
+    <PipelineStatsPanel @filter-change="handleStatsFilterChange" />
 
     <!-- Kanban board or List view based on activeView -->
     <template v-if="activeView === 'kanban'">
@@ -571,6 +662,14 @@ const formatDate = dateStr => {
 
     <!-- Manage Stages modal (admin only) -->
     <StageManagementModal v-model:show="showManageStages" />
+
+    <!-- Contact Sidebar -->
+    <ContactSidebar
+      v-if="isSidebarOpen && selectedContact"
+      :contact="selectedContact"
+      @close="isSidebarOpen = false"
+      @stage-change="handleSidebarStageChange"
+    />
   </div>
 </template>
 
