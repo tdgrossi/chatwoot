@@ -133,7 +133,10 @@ Plans:
   3. The list view shows a table with columns: name, email, phone, stage, last activity, created at
   4. A stage filter dropdown allows showing contacts across all stages, a specific stage, or unassigned only
   5. Clicking a contact row opens the existing contact detail sidebar
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] .planning/phases/07-list-view-view-toggle/07-01-PLAN.md -- View toggle, list table, stage filter, view persistence
 
 ---
 
@@ -164,5 +167,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 4. Frontend Infrastructure | 0/TBD | Not started | - |
 | 5. Kanban Board & Drag-Drop | 0/2 | Planned | - |
 | 6. Stage Management Admin UI | 1/1 | Complete | 2026-04-12 |
-| 7. List View & View Toggle | 0/TBD | Not started | - |
+| 7. List View & View Toggle | 1/1 | Planned | - |
 | 8. Stats Panel & Contact Sidebar | 0/TBD | Not started | - |
