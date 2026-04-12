@@ -13,7 +13,7 @@ requires:
 provides:
   - PipelineStatsPanel: horizontal stats cards row with per-stage counts, Total, Added Today
   - ContactSidebar: overlay sidebar with contact details and stage dropdown
-  - LeadIndex wiring: stats panel above Kanban/list, sidebar open on card/row click, state sync after stage change
+  - LeadsIndex wiring: stats panel above Kanban/list, sidebar open on card/row click, state sync after stage change
 affects:
   - phase: 09-future-phases (any feature needing pipeline contact context)
 
@@ -47,8 +47,8 @@ patterns-established:
 requirements-completed: [CRM-11, CRM-12]
 
 # Metrics
-duration: 96min
-completed: 2026-04-12
+duration: ~3min (execution)
+completed: 2026-04-11
 ---
 
 # Phase 08 Plan 01: Stats Panel and Contact Sidebar Summary
@@ -57,59 +57,55 @@ completed: 2026-04-12
 
 ## Performance
 
-- **Duration:** 96 min
-- **Started:** 2026-04-12T00:00:00Z
-- **Completed:** 2026-04-12T01:36:50Z
+- **Duration:** ~3 min (execution)
+- **Started:** 2026-04-11T22:34:48Z
+- **Completed:** 2026-04-11T22:36:35Z
 - **Tasks:** 3 completed
-- **Files modified:** 3
+- **Files created:** 2
+- **Files modified:** 1
 
 ## Accomplishments
 
-### Task 1: PipelineStatsPanel.vue (commit: d5ed9fc22)
-- Horizontal stats cards row between header and Kanban/list
-- Per-stage cards with color dot, name, count (clickable, filters activeFilter)
-- Total and Added Today summary cards (non-clickable)
-- Skeleton cards with `bg-n-slate-3 animate-pulse` while loading
-- Empty state with bar chart icon when no stats
-- `pipelineStore.fetchStats()` called in onMounted with `stats.length` guard
+- PipelineStatsPanel component with per-stage count cards, Total, and Added Today, with skeleton/loaded/empty states
+- ContactSidebar overlay with contact details (name, email, phone, last activity) and pipeline stage dropdown
+- LeadsIndex.vue wired with both components; card/row click opens sidebar; stats filter integration
+- Critical state sync fix: `syncContactsAfterStageChange()` ensures LeadsIndex local Vue refs stay in sync with Pinia store after any stage change
 
-### Task 2: ContactSidebar.vue (commit: ae4575ae1)
-- Fixed right panel via Teleport to body with backdrop overlay
-- Contact header with Avatar + name, email/phone/last activity fields
-- Pipeline Stage dropdown with all stages + Unassigned option
-- Custom inline dropdown list (custom-styled, not DropdownMenu slot) with color dots
-- Emits `stage-change({ toStageId })` and `close` events
-- Sidebar decoupled: does NOT call pipelineStore directly; parent handles store call
+## Task Commits
 
-### Task 3: LeadsIndex.vue wiring + sync fix (commit: bcf0bfac5)
-- PipelineStatsPanel rendered above Kanban/list with `@filter-change="handleStatsFilterChange"`
-- ContactSidebar rendered with `v-if="isSidebarOpen && selectedContact"`, receives contact, @close, @stage-change
-- handleCardClick and handleRowClick open sidebar (replaced console.log stubs)
-- handleStatsFilterChange updates activeFilter from stats panel card clicks
-- handleSidebarStageChange: optimistic local update + pipelineStore.moveContactToStage() + syncContactsAfterStageChange()
-- handleDrop also calls syncContactsAfterStageChange after moveContactToStage succeeds
-- Critical sync fix: syncContactsAfterStageChange bridges pipelineStore state and LeadsIndex local refs (contactsMap, contactsByStage)
+1. **Task 1: PipelineStatsPanel.vue** - `d5ed9fc22` (feat)
+2. **Task 2: ContactSidebar.vue** - `ae4575ae1` (feat)
+3. **Task 3: LeadsIndex wiring + sync fix** - `bcf0bfac5` (feat)
+
+**Plan metadata:** `169259da4` (docs: complete plan execution summary)
+
+## Files Created/Modified
+
+- `app/javascript/dashboard/components/pipeline/PipelineStatsPanel.vue` - Stats row with per-stage cards, total, and added today; emits filter-change on card click; skeleton while loading
+- `app/javascript/dashboard/components/pipeline/ContactSidebar.vue` - Fixed overlay sidebar with contact details and pipeline stage dropdown; emits stage-change and close
+- `app/javascript/dashboard/routes/dashboard/leads/pages/LeadsIndex.vue` - Imports both components; `selectedContact` and `isSidebarOpen` refs; `syncContactsAfterStageChange()`, `handleSidebarStageChange()`, `handleStatsFilterChange()`; `handleCardClick` and `handleRowClick` open sidebar; sync fix in `handleDrop`; stats panel and sidebar placed in template
+
+## Decisions Made
+
+- Sidebar emits stage-change event rather than calling store action directly, keeping sidebar decoupled from sync logic
+- `syncContactsAfterStageChange()` called in both `handleDrop` and `handleSidebarStageChange` for consistency
+- Custom dropdown list in sidebar (local isDropdownOpen ref) instead of DropdownMenu component for full color-dot rendering control
+- ActiveFilter drives both the header filter dropdown and stats panel filter-change events
 
 ## Deviations from Plan
 
 None - plan executed exactly as written.
 
-## Threat Flags
-
-None - all new surface (stat cards, sidebar overlay, stage dropdown) operates within existing Chatwoot authorization model; no new network endpoints, no new auth paths, no schema changes.
-
-## Known Stubs
+## Issues Encountered
 
 None.
 
-## Self-Check: PASSED
+## Next Phase Readiness
 
-Files exist:
-- `app/javascript/dashboard/components/pipeline/PipelineStatsPanel.vue` - FOUND
-- `app/javascript/dashboard/components/pipeline/ContactSidebar.vue` - FOUND
-- `app/javascript/dashboard/routes/dashboard/leads/pages/LeadsIndex.vue` - FOUND
+- Pipeline dashboard fully wired: Kanban/list with stats panel, stage management, contact detail sidebar
+- State sync mechanism established for Phase 9 automation triggers (stage transition webhooks/automations)
+- CRM-11 (volume statistics) and CRM-12 (contact stage selector) requirements satisfied
 
-Commits exist:
-- `d5ed9fc22` (PipelineStatsPanel) - FOUND
-- `ae4575ae1` (ContactSidebar) - FOUND
-- `bcf0bfac5` (LeadsIndex wiring) - FOUND
+---
+*Phase: 08-stats-panel-contact-sidebar*
+*Completed: 2026-04-11*
