@@ -3,10 +3,16 @@ import { ref, computed, onMounted } from 'vue';
 import { usePipelineStore } from '../../../../stores/pipeline';
 import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import KanbanBoard from 'dashboard/components/kanban/KanbanBoard.vue';
+import StageManagementModal from 'dashboard/components/pipeline/StageManagementModal.vue';
+import Button from 'dashboard/components-next/button/Button.vue';
 
 const pipelineStore = usePipelineStore();
 const store = useStore();
+const { isAdmin } = useAdmin();
+
+const showManageStages = ref(false);
 
 // Loading state
 const isLoading = ref(true);
@@ -192,6 +198,20 @@ const handleCardClick = contact => {
 
 <template>
   <div class="leads-index">
+    <!-- Header with Manage Stages button -->
+    <div class="flex items-center justify-between px-4 py-3 border-b border-n-weak">
+      <h1 class="text-base font-semibold text-n-slate-12">Pipeline</h1>
+      <Button
+        v-if="isAdmin"
+        label="Manage Stages"
+        icon="i-lucide-settings"
+        variant="outline"
+        color="slate"
+        size="sm"
+        @click="showManageStages = true"
+      />
+    </div>
+
     <!-- Loading state -->
     <div v-if="isLoading" class="p-4">
       <div class="kanban-board flex gap-4">
@@ -229,6 +249,9 @@ const handleCardClick = contact => {
       @drop="handleDrop"
       @card-click="handleCardClick"
     />
+
+    <!-- Manage Stages modal (admin only) -->
+    <StageManagementModal v-model:show="showManageStages" />
   </div>
 </template>
 
