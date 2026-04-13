@@ -1,0 +1,19 @@
+- main [ref=e4]:
+  - generic [ref=e5]:
+    - img "Chatwoot" [ref=e6]
+    - heading "Login to Chatwoot" [level=2] [ref=e7]
+  - generic [ref=e10]:
+    - generic [ref=e11]:
+      - generic [ref=e12]: Email
+      - textbox "example@companyname.com" [ref=e15]
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - text: Password
+        - paragraph [ref=e18]:
+          - link "Forgot your password?" [ref=e19] [cursor=pointer]:
+            - /url: /app/auth/reset/password
+      - generic [ref=e21]:
+        - textbox "Password" [ref=e22]
+        - button "Show password" [ref=e23] [cursor=pointer]
+    - button "Login" [ref=e25] [cursor=pointer]:
+      - generic [ref=e26]: Login

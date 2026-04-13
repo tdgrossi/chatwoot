@@ -1,0 +1,81 @@
+- generic [ref=e8]:
+  - complementary [ref=e9]:
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - img [ref=e13]
+        - button "Acme Inc" [ref=e16] [cursor=pointer]:
+          - generic [ref=e17]: Acme Inc
+      - generic [ref=e19]:
+        - link "Search..." [ref=e20] [cursor=pointer]:
+          - /url: /app/accounts/1/search
+          - generic [ref=e22]: Search...
+        - button [ref=e24] [cursor=pointer]
+    - navigation [ref=e26]:
+      - list [ref=e27]:
+        - listitem [ref=e28] [cursor=pointer]:
+          - button "My Inbox" [ref=e29]:
+            - generic [ref=e33]: My Inbox
+        - listitem [ref=e34] [cursor=pointer]:
+          - button "Conversations" [ref=e35]:
+            - generic [ref=e39]: Conversations
+        - listitem [ref=e58] [cursor=pointer]:
+          - button "Captain" [ref=e59]:
+            - generic [ref=e63]: Captain
+        - listitem [ref=e64] [cursor=pointer]:
+          - button "Contacts" [ref=e65]:
+            - generic [ref=e69]: Contacts
+        - listitem [ref=e70] [cursor=pointer]:
+          - button "Leads" [active] [ref=e71]:
+            - generic [ref=e75]: Leads
+        - listitem [ref=e76] [cursor=pointer]:
+          - button "Reports" [ref=e77]:
+            - generic [ref=e81]: Reports
+        - listitem [ref=e82] [cursor=pointer]:
+          - button "Campaigns" [ref=e83]:
+            - generic [ref=e87]: Campaigns
+        - listitem [ref=e88] [cursor=pointer]:
+          - button "Help Center" [ref=e89]:
+            - generic [ref=e93]: Help Center
+        - listitem [ref=e94] [cursor=pointer]:
+          - button "Settings" [ref=e95]:
+            - generic [ref=e99]: Settings
+    - button "John john@acme.inc" [ref=e103] [cursor=pointer]:
+      - img [ref=e106]:
+        - generic [ref=e107]: J
+      - generic [ref=e108]:
+        - generic [ref=e109]: John
+        - generic [ref=e110]: john@acme.inc
+  - main [ref=e113]:
+    - generic [ref=e177]:
+      - generic [ref=e178]:
+        - heading "Pipeline" [level=1] [ref=e179]
+        - generic [ref=e180]:
+          - generic [ref=e181]:
+            - button "All stages" [ref=e182] [cursor=pointer]:
+              - generic [ref=e183]: All stages
+            - button "Unassigned" [ref=e184] [cursor=pointer]:
+              - generic [ref=e185]: Unassigned
+            - button "New" [ref=e186] [cursor=pointer]:
+              - generic [ref=e187]: New
+          - generic [ref=e188]:
+            - button "Kanban view" [pressed] [ref=e189] [cursor=pointer]
+            - button "List view" [ref=e191] [cursor=pointer]
+          - button "Manage Stages" [ref=e193] [cursor=pointer]:
+            - generic [ref=e195]: Manage Stages
+      - generic [ref=e199]: No data yet
+      - generic [ref=e201]:
+        - generic [ref=e202]:
+          - generic [ref=e203]:
+            - generic [ref=e205]: Unassigned
+            - generic [ref=e206]: "1"
+          - generic [ref=e210]:
+            - img [ref=e212]:
+              - generic [ref=e213]: J
+            - generic [ref=e214]:
+              - generic [ref=e215]: jane
+              - generic [ref=e216]: about 1 hour ago
+        - generic [ref=e217]:
+          - generic [ref=e218]:
+            - generic [ref=e221]: New
+            - generic [ref=e222]: "0"
+          - generic [ref=e225]: No contacts in New
