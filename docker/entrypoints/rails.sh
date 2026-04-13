@@ -27,7 +27,12 @@ if ! bundle check > /dev/null 2>&1; then
   bundle install
 fi
 
+echo "[rails-entrypoint] $(date +%T) - Running database migrations..."
+
+bundle exec rails db:chatwoot_prepare
+
 echo "[rails-entrypoint] $(date +%T) - Ready to accept connections"
+
 
 # Execute the main process of the container
 exec "$@"

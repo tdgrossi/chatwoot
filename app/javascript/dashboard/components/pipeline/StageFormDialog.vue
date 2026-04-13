@@ -14,7 +14,9 @@ const emit = defineEmits(['save', 'close']);
 
 const localShow = computed({
   get: () => props.show,
-  set: val => { if (!val) emit('close'); },
+  set: val => {
+    if (!val) emit('close');
+  },
 });
 
 const formData = ref({
@@ -22,16 +24,48 @@ const formData = ref({
   color: props.stage?.color || '#6B7280',
 });
 
+// Guard against double submission
+const isSaving = ref(false);
+
 // Re-initialize form when stage prop changes (edit mode)
-watch(() => props.stage, newStage => {
-  formData.value = {
-    name: newStage?.name || '',
-    color: newStage?.color || '#6B7280',
-  };
-}, { immediate: true });
+watch(
+  () => props.stage,
+  newStage => {
+    console.log('[StageFormDialog] stage prop changed:', { newStage });
+    formData.value = {
+      name: newStage?.name || '',
+      color: newStage?.color || '#6B7280',
+    };
+    isSaving.value = false;
+  },
+  { immediate: true }
+);
+
+// Reset saving state when dialog opens fresh
+watch(
+  () => props.show,
+  show => {
+    console.log('[StageFormDialog] show prop changed:', show);
+    if (show) {
+      isSaving.value = false;
+    }
+  }
+);
+
+// Reset saving state when dialog opens fresh
+watch(
+  () => props.show,
+  show => {
+    if (show) {
+      isSaving.value = false;
+    }
+  }
+);
 
 const handleSave = () => {
+  if (isSaving.value) return;
   if (!formData.value.name.trim()) return;
+  isSaving.value = true;
   emit('save', {
     name: formData.value.name.trim(),
     color: formData.value.color,
@@ -47,7 +81,7 @@ const handleSave = () => {
     :on-close="() => emit('close')"
     @close="emit('close')"
   >
-    <form @submit.prevent="handleSave" class="p-6">
+    <form class="p-6" @submit.prevent="handleSave">
       <!-- Title -->
       <h3 class="text-base font-semibold text-n-slate-12 mb-4">
         {{ mode === 'create' ? 'Create Stage' : 'Update Stage' }}

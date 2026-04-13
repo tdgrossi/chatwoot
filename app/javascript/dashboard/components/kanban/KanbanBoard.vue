@@ -41,9 +41,11 @@ const handleCardClick = contact => {
   emit('card-click', contact);
 };
 
-const handleContactsUpdate = (stageId, updatedContacts) => {
-  emit('update:contacts', { stageId, contacts: updatedContacts });
-};
+// NOTE: update:contacts event from StageColumn/vuedraggable is intentionally NOT handled here.
+// The Kanban board receives stage changes via the `drop` event -> handleDrop in LeadsIndex.
+// The update:contacts event fires synchronously during drag (before API call completes) and
+// would race with the optimistic update, causing contact duplicates in the UI.
+// syncContactsAfterStageChange in LeadsIndex correctly handles the async stage-change flow.
 </script>
 
 <template>
@@ -58,7 +60,6 @@ const handleContactsUpdate = (stageId, updatedContacts) => {
         :column-index="0"
         @drop="handleDrop('unassigned', $event)"
         @card-click="handleCardClick"
-        @update:contacts="handleContactsUpdate('unassigned', $event)"
       />
 
       <!-- Stage columns (ordered by position, per D-12) -->
@@ -72,7 +73,6 @@ const handleContactsUpdate = (stageId, updatedContacts) => {
         :column-index="index + 1"
         @drop="handleDrop(stage.id, $event)"
         @card-click="handleCardClick"
-        @update:contacts="handleContactsUpdate(stage.id, $event)"
       />
     </div>
   </div>

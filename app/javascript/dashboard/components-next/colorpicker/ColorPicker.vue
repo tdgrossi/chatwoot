@@ -1,7 +1,6 @@
 <script setup>
-import { ref, defineProps, defineEmits } from 'vue';
+import { ref, defineProps, defineEmits, nextTick } from 'vue';
 import { Chrome } from '@lk77/vue3-color';
-import { OnClickOutside } from '@vueuse/components';
 
 import Button from 'dashboard/components-next/button/Button.vue';
 
@@ -15,56 +14,74 @@ defineProps({
 const emit = defineEmits(['update:modelValue']);
 
 const isPickerOpen = ref(false);
+const triggerRef = ref(null);
+const pickerStyle = ref({});
 
-const toggleColorPicker = () => {
-  isPickerOpen.value = !isPickerOpen.value;
+const computePickerPosition = () => {
+  if (!triggerRef.value) return;
+  const rect = triggerRef.value.getBoundingClientRect();
+  pickerStyle.value = {
+    position: 'fixed',
+    top: `${rect.bottom + 8}px`,
+    left: `${rect.left}px`,
+    zIndex: 9999,
+  };
 };
 
-const closeTogglePicker = () => {
+const toggleColorPicker = async () => {
+  isPickerOpen.value = !isPickerOpen.value;
   if (isPickerOpen.value) {
-    toggleColorPicker();
+    await nextTick();
+    computePickerPosition();
+  }
+};
+
+const closeColorPicker = () => {
+  if (isPickerOpen.value) {
+    isPickerOpen.value = false;
   }
 };
 
 const updateColor = e => {
   emit('update:modelValue', e.hex);
 };
-
-const pickerRef = ref(null);
 </script>
 
 <template>
-  <div ref="pickerRef" class="relative w-fit">
-    <OnClickOutside @trigger="closeTogglePicker">
-      <Button
-        color="slate"
-        icon="i-lucide-pipette"
-        trailing-icon
-        class="!px-3 !py-3 [&>svg]:w-4 [&>svg]:h-4"
-        @click="toggleColorPicker"
-      >
-        <div class="flex items-center flex-grow gap-2">
-          <span
-            class="rounded-md size-4"
-            :style="{ backgroundColor: modelValue }"
-          />
-          <span class="min-w-0 truncate">{{ modelValue }}</span>
-        </div>
-      </Button>
+  <div ref="triggerRef" class="relative w-fit">
+    <Button
+      type="button"
+      color="slate"
+      icon="i-lucide-pipette"
+      trailing-icon
+      class="!px-3 !py-3 [&>svg]:w-4 [&>svg]:h-4"
+      @click.stop="toggleColorPicker"
+    >
+      <div class="flex items-center flex-grow gap-2">
+        <span
+          class="rounded-md size-4"
+          :style="{ backgroundColor: modelValue }"
+        />
+        <span class="min-w-0 truncate">{{ modelValue }}</span>
+      </div>
+    </Button>
+  </div>
+  <Teleport to="body">
+    <div v-if="isPickerOpen" :style="pickerStyle">
       <Chrome
-        v-if="isPickerOpen"
+        v-on-clickaway="closeColorPicker"
         disable-alpha
         :model-value="modelValue"
         class="colorpicker--chrome"
         @update:model-value="updateColor"
       />
-    </OnClickOutside>
-  </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped lang="scss">
 .colorpicker--chrome.vc-chrome {
-  @apply shadow-lg absolute bg-n-background z-[9999] border border-n-weak dark:border-n-weak rounded-[8px];
+  @apply shadow-lg bg-n-background border border-n-weak dark:border-n-weak rounded-[8px];
 
   :deep() {
     .vc-chrome-saturation-wrap {

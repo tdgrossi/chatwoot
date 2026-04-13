@@ -179,6 +179,8 @@ class FilterService
   end
 
   def query_builder(model_filters)
+    return base_relation if @params[:payload].nil?
+
     @params[:payload].each_with_index do |query_hash, current_index|
       @query_string += " #{build_condition_query(model_filters, query_hash, current_index).strip}"
     end

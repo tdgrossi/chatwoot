@@ -155,8 +155,15 @@ export const usePipelineStore = createStore({
         // Persist via API (per D-10: PATCH contact with pipeline_stage_id)
         const apiPayload = { pipeline_stage_id: toStageId === 'unassigned' ? null : toStageId };
         console.log('[pipeline] API request:', { contactId, ...apiPayload });
-        await ContactAPI.update(contactId, apiPayload);
+        const response = await ContactAPI.update(contactId, apiPayload);
         console.log('[pipeline] API SUCCESS - contact moved');
+
+        // Commit updated contact to Vuex store so downstream readers
+        // (e.g. syncContactsAfterStageChange) see the new pipeline_stage_id.
+        // ContactAPI.update() does NOT auto-update the Vuex contacts module.
+        const updatedContact = response.data.payload || response.data;
+        vuexStore.commit('contacts/EDIT_CONTACT', updatedContact);
+        console.log('[pipeline] Vuex store updated:', updatedContact.id, '| pipeline_stage_id:', updatedContact.pipeline_stage_id);
 
         this.setUIFlag({ updatingContact: false });
       } catch (error) {

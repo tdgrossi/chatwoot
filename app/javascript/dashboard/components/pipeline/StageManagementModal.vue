@@ -51,11 +51,17 @@ const handleSave = async ({ name, color }) => {
   if (editingStage.value) {
     // Edit mode
     const previousStages = [...pipelineStore.stages];
-    const index = pipelineStore.stages.findIndex(s => s.id === editingStage.value.id);
+    const index = pipelineStore.stages.findIndex(
+      s => s.id === editingStage.value.id
+    );
     const updated = { ...editingStage.value, name, color };
     if (index !== -1) pipelineStore.stages[index] = updated;
     try {
-      await pipelineStore.updateStage({ id: editingStage.value.id, name, color });
+      await pipelineStore.updateStage({
+        id: editingStage.value.id,
+        name,
+        color,
+      });
     } catch {
       pipelineStore.stages = previousStages;
       useAlert('Failed to update stage. Please try again.');
@@ -63,7 +69,12 @@ const handleSave = async ({ name, color }) => {
   } else {
     // Create mode
     const tempId = `temp-${Date.now()}`;
-    const tempStage = { id: tempId, name, color, position: sortedStages.value.length };
+    const tempStage = {
+      id: tempId,
+      name,
+      color,
+      position: sortedStages.value.length,
+    };
     pipelineStore.stages.push(tempStage);
     try {
       const newStage = await pipelineStore.createStage({ name, color });
@@ -147,12 +158,13 @@ const isLastStage = stage => {
     :show="showManageStagesModel"
     modal-type="right-aligned"
     :show-close-button="true"
-    :on-close="close"
     @close="close"
   >
     <div class="flex flex-col h-full">
       <!-- Header -->
-      <div class="flex items-center justify-between px-4 py-3 border-b border-n-weak">
+      <div
+        class="flex items-center justify-between px-4 py-3 border-b border-n-weak"
+      >
         <h2 class="text-base font-semibold text-n-slate-12">Manage Stages</h2>
       </div>
 
@@ -163,7 +175,9 @@ const isLastStage = stage => {
           v-if="sortedStages.length === 0"
           class="flex flex-col items-center justify-center py-12 text-center"
         >
-          <p class="text-base font-semibold text-n-slate-12 mb-1">No stages yet</p>
+          <p class="text-base font-semibold text-n-slate-12 mb-1">
+            No stages yet
+          </p>
           <p class="text-sm text-n-slate-11 mb-4">
             Create your first stage to organize your pipeline.
           </p>
@@ -204,7 +218,9 @@ const isLastStage = stage => {
             />
 
             <!-- Stage name -->
-            <span class="text-sm font-medium text-n-slate-12 flex-grow min-w-0 truncate">
+            <span
+              class="text-sm font-medium text-n-slate-12 flex-grow min-w-0 truncate"
+            >
               {{ stage.name }}
             </span>
 
@@ -258,7 +274,6 @@ const isLastStage = stage => {
       :show="showDeleteDialog"
       modal-type="centered"
       :show-close-button="false"
-      :on-close="cancelDelete"
       @close="cancelDelete"
     >
       <div class="p-6">
@@ -266,15 +281,12 @@ const isLastStage = stage => {
           Delete stage?
         </h3>
         <p class="text-sm text-n-slate-11 mb-6">
-          Contacts in this stage will be moved to unassigned. This cannot be undone.
+          Contacts in this stage will be moved to unassigned. This cannot be
+          undone.
         </p>
         <div class="flex gap-3 justify-end">
           <Button variant="ghost" slate label="Cancel" @click="cancelDelete" />
-          <Button
-            color="ruby"
-            label="Delete"
-            @click="executeDelete"
-          />
+          <Button color="ruby" label="Delete" @click="executeDelete" />
         </div>
       </div>
     </Modal>

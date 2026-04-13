@@ -467,6 +467,13 @@ const menuItems = computed(() => {
       ],
     },
     {
+      name: 'Leads',
+      label: t('SIDEBAR.LEADS'),
+      icon: 'i-lucide-layout-grid',
+      to: accountScopedRoute('leads_dashboard_index'),
+      activeOn: ['leads_dashboard_index'],
+    },
+    {
       name: 'Reports',
       label: t('SIDEBAR.REPORTS'),
       icon: 'i-lucide-chart-spline',

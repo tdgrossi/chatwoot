@@ -1,22 +1,22 @@
 <script setup>
 import { computed, onMounted } from 'vue';
-import { usePipelineStore } from '../../../stores/pipeline';
+import { usePipelineStore } from '../../stores/pipeline';
+
+const emit = defineEmits(['filter-change']);
 
 const pipelineStore = usePipelineStore();
 
 const isLoading = computed(() => pipelineStore.uiFlags.fetchingList);
 const stats = computed(() => pipelineStore.getStats);
 const totalCount = computed(() =>
-  stats.value.reduce((sum, s) => sum + (s.count || 0), 0)
+  (stats.value || []).reduce((sum, s) => sum + (s.count || 0), 0)
 );
 const totalAddedToday = computed(() =>
-  stats.value.reduce((sum, s) => sum + (s.addedToday || 0), 0)
+  (stats.value || []).reduce((sum, s) => sum + (s.addedToday || 0), 0)
 );
 
-const emit = defineEmits(['filter-change']);
-
 onMounted(async () => {
-  if (!stats.value.length) {
+  if (!(stats.value || []).length) {
     await pipelineStore.fetchStats();
   }
 });
@@ -31,17 +31,17 @@ const handleCardClick = stageId => {
     <!-- Skeleton state -->
     <template v-if="isLoading">
       <div
-        v-for="i in (stats.length || 4)"
+        v-for="i in (stats || []).length || 4"
         :key="i"
         class="flex-shrink-0 w-32 h-16 bg-n-slate-3 rounded-lg animate-pulse"
       />
     </template>
 
     <!-- Loaded state -->
-    <template v-else-if="stats.length">
+    <template v-else-if="(stats || []).length">
       <!-- Per-stage cards -->
       <div
-        v-for="stat in stats"
+        v-for="stat in stats || []"
         :key="stat.stageId"
         class="flex-shrink-0 w-32 border border-n-weak rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow bg-n-surface-2"
         @click="handleCardClick(stat.stageId)"
@@ -51,9 +51,9 @@ const handleCardClick = stageId => {
             class="w-2 h-2 rounded-full"
             :style="{ backgroundColor: stat.color }"
           />
-          <span
-            class="text-xs font-medium text-n-slate-11 truncate"
-          >{{ stat.name }}</span>
+          <span class="text-xs font-medium text-n-slate-11 truncate">{{
+            stat.name
+          }}</span>
         </div>
         <div class="text-2xl font-semibold text-n-slate-12">
           {{ stat.count }}

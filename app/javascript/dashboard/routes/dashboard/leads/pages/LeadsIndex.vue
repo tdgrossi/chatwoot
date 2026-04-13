@@ -43,10 +43,34 @@ const unassignedContacts = computed(() =>
 );
 
 // Computed: contacts per stage (from contactsByStage)
+// DEDUPLICATION: ensure no contact appears in multiple stages due to reactivity edge cases.
+// When a contact appears in multiple stages, keep the one in the stage that matches
+// its pipeline_stage_id (canonical data from contactsMap). Remove from all other stages.
 const stageContacts = computed(() => {
   const result = {};
+  // Track which contacts appear in which stages (by contactsByStage keys)
+  const contactToStages = {};
+  Object.entries(contactsByStage.value).forEach(([stageId, contacts]) => {
+    (contacts || []).forEach(c => {
+      if (!contactToStages[c.id]) contactToStages[c.id] = [];
+      contactToStages[c.id].push(Number(stageId));
+    });
+  });
+
+  // For each stage, include only contacts whose pipeline_stage_id matches the stage id
   orderedStages.value.forEach(stage => {
-    result[stage.id] = contactsByStage.value[stage.id] || [];
+    const raw = contactsByStage.value[stage.id] || [];
+    const deduped = raw.filter(c => {
+      const actualStage = contactsMap.value[c.id]?.pipeline_stage_id;
+      // Keep contact only if its canonical pipeline_stage_id matches this stage
+      if (actualStage !== stage.id) {
+        const inStages = contactToStages[c.id] || [];
+        console.log(`[stageContacts] DEDUP: contact ${c.id} pipeline_stage_id=${actualStage} != stage ${stage.id}, inStages=${JSON.stringify(inStages)}, removing`);
+        return false;
+      }
+      return true;
+    });
+    result[stage.id] = deduped;
   });
   return result;
 });
@@ -77,8 +101,10 @@ const loadContactsForStage = async stageId => {
 
 // Load all contacts (stages + unassigned) and group by stage
 const loadAllContacts = async () => {
+  console.log('[leads] loadAllContacts called');
   // Get contacts from Vuex store (fetched by stages)
   const allContacts = Object.values(store.state.contacts?.records || {});
+  console.log('[leads] loadAllContacts allContacts:', allContacts.map(c => ({id: c.id, stage: c.pipeline_stage_id})));
 
   // Group contacts by pipeline_stage_id
   const grouped = {};
@@ -126,43 +152,79 @@ const fetchUnassignedContacts = async () => {
   }
 };
 
-// Sync LeadsIndex local state after sidebar stage change (critical fix for Pitfall #2)
-// pipelineStore.moveContactToStage() updates store state but LeadsIndex has its own
-// contactsMap and contactsByStage refs. After the store action, we must sync the local
-// refs back so the Kanban/list re-renders correctly.
-const syncContactsAfterStageChange = (contactId, fromStageId, toStageId) => {
-  console.log('[leads] syncContactsAfterStageChange called', { contactId, fromStageId, toStageId });
-  console.log('[leads] pipelineStore.contacts:', pipelineStore.contacts);
-  const updatedContact = pipelineStore.contacts[contactId];
-  console.log('[leads] updatedContact from pipelineStore.contacts:', updatedContact ? updatedContact.id : 'UNDEFINED - this is the bug!');
+// Sync LeadsIndex local state after stage change.
+// pipelineStore.moveContactToStage() updates Vuex store but LeadsIndex has its own
+// contactsMap and contactsByStage refs. This function syncs local refs back from Vuex.
+//
+// IMPORTANT: For drag-drop (handleDrop), contactsByStage is ALREADY updated optimistically
+// by handleDrop BEFORE the API call. Calling syncContactsAfterStageChange AFTER the API call
+// must NOT re-modify contactsByStage, because Vuex still has the OLD pipeline_stage_id at that
+// point (EDIT_CONTACT commits the new value after the API response arrives, but sync runs BEFORE
+// that commit completes). Re-modifying contactsByStage based on stale Vuex data would re-add
+// the contact to the OLD stage.
+//
+// For sidebar changes (handleSidebarStageChange), contactsByStage is NOT updated optimistically,
+// so this function MUST update contactsByStage.
+//
+// The `skipContactsByStageSync` parameter controls this: true = skip contactsByStage (drag-drop),
+// false = update contactsByStage (sidebar).
+const syncContactsAfterStageChange = (contactId, fromStageId, toStageId, skipContactsByStageSync = false) => {
+  console.log('[leads] syncContactsAfterStageChange called', { contactId, fromStageId, toStageId, skipContactsByStageSync });
+  console.log('[leads] store.state.contacts.records keys:', Object.keys(store.state.contacts?.records || {}));
+  const updatedContact = store.state.contacts?.records?.[contactId];
+  console.log('[leads] updatedContact from store:', updatedContact ? updatedContact.id : 'UNDEFINED!');
   if (!updatedContact) return;
 
-  // Update contactsMap with the updated contact from the store
+  // Always update contactsMap with the fresh contact data from Vuex (this is always correct)
   contactsMap.value[contactId] = updatedContact;
 
-  // Sync contactsByStage: remove from source, add to destination
-  const fromKey = fromStageId === null ? null : Number(fromStageId);
-  const toKey = toStageId === null ? null : Number(toStageId);
+  // Skip contactsByStage modification for drag-drop (already handled by handleDrop's optimistic update)
+  // Only modify contactsByStage for sidebar changes where no optimistic update occurred.
+  if (skipContactsByStageSync) {
+    console.log('[leads] syncContactsAfterStageChange: skipping contactsByStage sync (drag-drop flow, already optimistic)');
+    return;
+  }
+
+  // Sync contactsByStage: remove from source, add to destination (sidebar flow only)
+  const fromKey = (fromStageId === null || fromStageId === 'unassigned') ? null : Number(fromStageId);
+  const toKey = (toStageId === null || toStageId === 'unassigned') ? null : Number(toStageId);
+  console.log('[leads] syncContactsAfterStageChange contactsByStage update', { fromKey, toKey });
 
   // Remove from source stage
   if (fromKey !== null && contactsByStage.value[fromKey]) {
     contactsByStage.value[fromKey] = contactsByStage.value[fromKey].filter(
-      c => c.id !== contactId
+      c => String(c.id) !== String(contactId)
+    );
+  } else if (fromKey === null && contactsByStage.value[null]) {
+    contactsByStage.value[null] = contactsByStage.value[null].filter(
+      c => String(c.id) !== String(contactId)
     );
   }
 
   // Add to destination stage
   if (toKey !== null) {
+    console.log('[leads] before add - contactsByStage[' + toKey + ']:', contactsByStage.value[toKey]?.map(c => c.id));
     if (!contactsByStage.value[toKey]) {
       contactsByStage.value[toKey] = [];
     }
-    // Remove first to avoid duplicates
     contactsByStage.value[toKey] = contactsByStage.value[toKey].filter(
-      c => c.id !== contactId
+      c => String(c.id) !== String(contactId)
     );
     contactsByStage.value[toKey].push(updatedContact);
+    console.log('[leads] after add - contactsByStage[' + toKey + ']:', contactsByStage.value[toKey]?.map(c => c.id));
+  } else if (toKey === null) {
+    console.log('[leads] before add - contactsByStage[null]:', contactsByStage.value[null]?.map(c => c.id));
+    if (!contactsByStage.value[null]) {
+      contactsByStage.value[null] = [];
+    }
+    contactsByStage.value[null] = contactsByStage.value[null].filter(
+      c => String(c.id) !== String(contactId)
+    );
+    contactsByStage.value[null].push(updatedContact);
+    console.log('[leads] after add - contactsByStage[null]:', contactsByStage.value[null]?.map(c => c.id));
   }
 
+  console.log('[leads] contactsByStage keys:', Object.keys(contactsByStage.value));
   // Force Vue reactivity on contactsByStage
   contactsByStage.value = { ...contactsByStage.value };
 };
@@ -226,6 +288,8 @@ onMounted(async () => {
 // Handle drag-drop
 const handleDrop = async event => {
   const { contactId, fromStageId, toStageId } = event;
+  console.log('[handleDrop] ========== START ==========');
+  console.log('[handleDrop] Input:', { contactId, fromStageId, toStageId });
   if (!contactId) return;
   if (fromStageId === toStageId) return; // No-op if dropped in same column
 
@@ -233,53 +297,108 @@ const handleDrop = async event => {
   const contact = contactsMap.value[contactId];
   if (!contact) return;
 
-  // Normalize keys: 'unassigned' -> null, numeric stage ids
+  // Normalize keys: 'unassigned' -> null, numeric stage ids as strings and numbers
   const fromKey = fromStageId === 'unassigned' ? null : String(fromStageId);
   const toKey = toStageId === 'unassigned' ? null : String(toStageId);
 
-  // Optimistically update contactsMap
-  contactsMap.value[contactId] = {
-    ...contact,
-    pipeline_stage_id: toKey === 'null' ? null : toKey,
-  };
-
-  // Optimistically update contactsByStage: remove from source
+  // Numeric versions for contactsByStage object keys (must match API types)
   const fromNumKey =
     fromKey === 'null' ? null : fromKey === null ? null : Number(fromKey);
   const toNumKey =
     toKey === 'null' ? null : toKey === null ? null : Number(toKey);
 
-  if (fromNumKey !== null) {
-    contactsByStage.value[fromNumKey] = (
-      contactsByStage.value[fromNumKey] || []
-    ).filter(c => c.id !== contactId);
+  console.log('[handleDrop] Keys normalized:', { fromKey, toKey, fromNumKey, toNumKey });
+  console.log('[handleDrop] contactsByStage BEFORE optimistic update:', JSON.parse(JSON.stringify(contactsByStage.value)));
+  console.log('[handleDrop] contactsMap[contactId] BEFORE:', contactsMap.value[contactId]?.pipeline_stage_id);
+
+  // Optimistically update contactsMap
+  // Use toNumKey (NUMBER) to match the type that loadAllContacts uses for grouping.
+  // API returns NUMBER, loadAllContacts groups by NUMBER pipeline_stage_id.
+  // Using toKey (STRING) would cause a type mismatch: contactsByStage['3'] vs contactsByStage[3].
+  contactsMap.value[contactId] = {
+    ...contact,
+    pipeline_stage_id: toNumKey,
+  };
+  console.log('[handleDrop] contactsMap[contactId] AFTER:', contactsMap.value[contactId]?.pipeline_stage_id);
+
+  // Remove from source stage (handles both numeric stage and unassigned/null)
+  // Normalize contactId for comparison (both may be strings or numbers)
+  const contactIdNum = Number(contactId);
+  const contactIdStr = String(contactId);
+  const fromKeyForRemove = fromNumKey !== null ? fromNumKey : null;
+  const toKeyForRemove = toNumKey !== null ? toNumKey : null;
+
+  if (fromKeyForRemove !== null) {
+    const sourceArr = contactsByStage.value[fromKeyForRemove] || [];
+    const filteredSource = sourceArr.filter(c => Number(c.id) !== contactIdNum);
+    contactsByStage.value[fromKeyForRemove] = filteredSource;
+    console.log(`[handleDrop] Removed from stage ${fromKeyForRemove}: before=${sourceArr.map(c => c.id)}, after=${filteredSource.map(c => c.id)}`);
+  } else if (fromKeyForRemove === null && contactsByStage.value[null]) {
+    // Contact was in unassigned column
+    const sourceArr = contactsByStage.value[null] || [];
+    const filteredSource = sourceArr.filter(c => Number(c.id) !== contactIdNum);
+    contactsByStage.value[null] = filteredSource;
+    console.log(`[handleDrop] Removed from unassigned: before=${sourceArr.map(c => c.id)}, after=${filteredSource.map(c => c.id)}`);
   }
-  if (!contactsByStage.value[toNumKey]) {
-    contactsByStage.value[toNumKey] = [];
+
+  // Initialize and clear destination stage (remove contact if already there)
+  if (toKeyForRemove !== null) {
+    if (!contactsByStage.value[toKeyForRemove]) {
+      contactsByStage.value[toKeyForRemove] = [];
+    }
+    const targetArr = contactsByStage.value[toKeyForRemove] || [];
+    const filteredTarget = targetArr.filter(c => Number(c.id) !== contactIdNum);
+    contactsByStage.value[toKeyForRemove] = filteredTarget;
+    console.log(`[handleDrop] Cleared from target stage ${toKeyForRemove}: before=${targetArr.map(c => c.id)}, after=${filteredTarget.map(c => c.id)}`);
+  } else if (toKeyForRemove === null) {
+    if (!contactsByStage.value[null]) {
+      contactsByStage.value[null] = [];
+    }
+    const targetArr = contactsByStage.value[null] || [];
+    const filteredTarget = targetArr.filter(c => Number(c.id) !== contactIdNum);
+    contactsByStage.value[null] = filteredTarget;
   }
-  // Remove from target first (in case fromKey === toKey)
-  contactsByStage.value[toNumKey] = (contactsByStage.value[toNumKey] || []).filter(
-    c => c.id !== contactId
-  );
   // Force reactivity
   contactsByStage.value = { ...contactsByStage.value };
+  console.log('[handleDrop] contactsByStage AFTER remove:', JSON.parse(JSON.stringify(contactsByStage.value)));
+
+  // Add contact to new stage
+  const movedContact = contactsMap.value[contactId];
+  if (toNumKey !== null) {
+    contactsByStage.value[toNumKey].push(movedContact);
+  } else if (toNumKey === null) {
+    if (!contactsByStage.value[null]) contactsByStage.value[null] = [];
+    contactsByStage.value[null].push(movedContact);
+  }
+  // Force reactivity again so new stage shows the contact
+  contactsByStage.value = { ...contactsByStage.value };
+  console.log('[handleDrop] contactsByStage AFTER add:', JSON.parse(JSON.stringify(contactsByStage.value)));
 
   // Call store action for API call with revert on failure
-  console.log('[leads] handleDrop calling moveContactToStage', { contactId, fromKey, toKey });
+  console.log('[handleDrop] calling moveContactToStage', { contactId, fromKey, toKey });
   try {
     await pipelineStore.moveContactToStage({
       contactId,
       fromStageId: fromKey,
       toStageId: toKey,
     });
-    // Sync store state back to LeadsIndex local refs (Pitfall #2 fix)
-    syncContactsAfterStageChange(contactId, fromNumKey, toNumKey);
+    console.log('[handleDrop] moveContactToStage SUCCESS');
+    console.log('[handleDrop] Vuex records[contactId] AFTER API:', store.state.contacts?.records?.[contactId]?.pipeline_stage_id);
+    // Sync store state back to LeadsIndex local refs.
+    // skipContactsByStageSync=true: contactsByStage was already updated optimistically
+    // by handleDrop above. Vuex still has old pipeline_stage_id, so we must NOT
+    // re-modify contactsByStage (would re-add to wrong stage).
+    console.log('[handleDrop] calling syncContactsAfterStageChange with skip=true');
+    syncContactsAfterStageChange(contactId, fromNumKey, toNumKey, true);
+    console.log('[handleDrop] contactsByStage AFTER sync:', JSON.parse(JSON.stringify(contactsByStage.value)));
+    console.log('[handleDrop] ========== END (SUCCESS) ==========');
   } catch (error) {
-    console.log('[leads] handleDrop catch block firing, error:', error?.message || error, '| contactId:', contactId);
+    console.log('[handleDrop] catch block firing, error:', error?.message || error, '| contactId:', contactId);
     console.log('[leads] RELOADING contacts (this causes revert!)');
     // Store action handles revert + toast; reload contacts to ensure consistency
     await fetchContactsForAllStages();
     await fetchUnassignedContacts();
+    console.log('[handleDrop] ========== END (ERROR) ==========');
   }
 };
 
