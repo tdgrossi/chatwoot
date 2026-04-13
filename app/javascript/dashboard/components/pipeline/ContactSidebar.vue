@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { usePipelineStore } from '../../../stores/pipeline';
+import { usePipelineStore } from '../../stores/pipeline';
 import DropdownMenu from '../../components-next/dropdown-menu/DropdownMenu.vue';
 import Avatar from '../../components-next/avatar/Avatar.vue';
 import Icon from '../../components-next/icon/Icon.vue';
@@ -55,6 +55,7 @@ const currentStageColor = computed(() => {
 });
 
 const handleDropdownAction = ({ action, value }) => {
+  console.log('[sidebar] stage change handler called', { action, value, currentStageId: props.contact?.pipeline_stage_id });
   if (action === 'select-stage') {
     isDropdownOpen.value = false;
     emit('stage-change', { toStageId: value });

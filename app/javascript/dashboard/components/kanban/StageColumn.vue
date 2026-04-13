@@ -26,7 +26,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['drop', 'card-click']);
+const emit = defineEmits(['drop', 'card-click', 'update:contacts']);
 
 const stageName = computed(() => props.stage?.name || 'Unknown Stage');
 const stageColor = computed(() => props.stage?.color || '#6B7280');
@@ -48,10 +48,14 @@ const columnClasses = computed(() => ({
 }));
 
 const handleDragEnd = event => {
+  const contactId = event.item?.dataset?.contactId;
+  const fromStageId = event.from?.dataset?.stageId || null;
+  const toStageId = event.to?.dataset?.stageId || null;
+  console.log('[kanban] drop event', { contactId, fromStageId, toStageId, fromIndex: event.oldIndex, toIndex: event.newIndex });
   emit('drop', {
-    contactId: event.item?.dataset?.contactId,
-    fromStageId: event.from?.dataset?.stageId || null,
-    toStageId: event.to?.dataset?.stageId || null,
+    contactId,
+    fromStageId,
+    toStageId,
     fromIndex: event.oldIndex,
     toIndex: event.newIndex,
   });
@@ -106,7 +110,7 @@ const onCardClick = contact => {
       <!-- Draggable cards list -->
       <Draggable
         v-else
-        v-model="contacts"
+        :model-value="contacts"
         :group="{ name: 'kanban', pull: true, put: true }"
         item-key="id"
         ghost-class="ghost"
@@ -114,6 +118,7 @@ const onCardClick = contact => {
         :animation="200"
         class="flex flex-col gap-2 p-1 min-h-10"
         :data-stage-id="isUnassigned ? 'unassigned' : stage.id"
+        @update:model-value="$emit('update:contacts', $event)"
         @end="handleDragEnd"
       >
         <template #item="{ element }">

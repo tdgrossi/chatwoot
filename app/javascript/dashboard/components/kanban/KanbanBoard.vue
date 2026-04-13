@@ -33,11 +33,16 @@ const orderedStages = computed(() =>
 );
 
 const handleDrop = (stageId, event) => {
+  console.log('[kanban] KanbanBoard received drop event', { stageId, event });
   emit('drop', event);
 };
 
 const handleCardClick = contact => {
   emit('card-click', contact);
+};
+
+const handleContactsUpdate = (stageId, updatedContacts) => {
+  emit('update:contacts', { stageId, contacts: updatedContacts });
 };
 </script>
 
@@ -53,6 +58,7 @@ const handleCardClick = contact => {
         :column-index="0"
         @drop="handleDrop('unassigned', $event)"
         @card-click="handleCardClick"
+        @update:contacts="handleContactsUpdate('unassigned', $event)"
       />
 
       <!-- Stage columns (ordered by position, per D-12) -->
@@ -66,6 +72,7 @@ const handleCardClick = contact => {
         :column-index="index + 1"
         @drop="handleDrop(stage.id, $event)"
         @card-click="handleCardClick"
+        @update:contacts="handleContactsUpdate(stage.id, $event)"
       />
     </div>
   </div>

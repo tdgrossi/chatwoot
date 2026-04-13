@@ -5,6 +5,7 @@ import { createStore } from 'dashboard/store/storeFactory';
 import { throwErrorMessage } from 'dashboard/store/utils/api';
 import { useAlert } from 'dashboard/composables';
 import camelcaseKeys from 'camelcase-keys';
+import vuexStore from 'dashboard/store';
 
 export const usePipelineStore = createStore({
   name: 'pipeline',
@@ -15,8 +16,6 @@ export const usePipelineStore = createStore({
     stages: [],
     stats: [],
     meta: {},
-    contacts: {},
-    contactsByStage: {},
     uiFlags: {
       fetchingList: false,
       fetchingItem: false,
@@ -37,9 +36,10 @@ export const usePipelineStore = createStore({
       });
       return map;
     },
-    getContactsByStage: state => state.contactsByStage,
-    getUnassignedContacts: state => {
-      return Object.values(state.contacts).filter(
+    getContactsByStage: _state => ({}),
+    // Read unassigned contacts from Vuex store (pipelineStore.contacts is always empty)
+    getUnassignedContacts: _state => {
+      return Object.values(vuexStore.state.contacts?.records || {}).filter(
         contact => !contact.pipeline_stage_id
       );
     },
@@ -89,7 +89,7 @@ export const usePipelineStore = createStore({
       try {
         const response = await PipelineStagesAPI.create(data);
         const newStage = response.data.payload || response.data;
-        this.stages.push(newStage);
+        // NOTE: Don't push here - StageManagementModal handles adding to stages array
         this.setUIFlag({ creatingItem: false });
         return newStage;
       } catch (error) {
@@ -138,78 +138,36 @@ export const usePipelineStore = createStore({
     },
 
     async moveContactToStage({ contactId, fromStageId, toStageId }) {
+      console.log('[pipeline] moveContactToStage called', { contactId, fromStageId, toStageId });
       this.setUIFlag({ updatingContact: true });
       try {
-        // Optimistic update: update local state immediately
-        const contact = this.contacts[contactId];
+        // Read contact from Vuex store (pipelineStore.contacts is always empty {})
+        const contact = vuexStore.state.contacts?.records?.[contactId];
+        console.log('[pipeline] contact from vuexStore:', contact ? contact.id : 'NOT FOUND', '| contactId:', contactId);
+        console.log('[pipeline] vuexStore contacts keys:', Object.keys(vuexStore.state.contacts?.records || {}));
         if (!contact) {
+          console.log('[pipeline] EARLY RETURN: contact not found in vuexStore');
+          useAlert('Contact not found. Please refresh the page.');
           this.setUIFlag({ updatingContact: false });
           return;
         }
-        const previousStageId = contact.pipeline_stage_id;
-
-        // Update contact's pipeline_stage_id in local state
-        const updatedContact = {
-          ...contact,
-          pipeline_stage_id: toStageId === 'unassigned' ? null : toStageId,
-        };
-        this.contacts[contactId] = updatedContact;
-
-        // Remove from old stage list
-        const fromKey = fromStageId === 'unassigned' ? null : fromStageId;
-        const fromContacts = this.contactsByStage[fromKey] || [];
-        this.contactsByStage[fromKey] = fromContacts.filter(
-          c => c.id !== contactId
-        );
-
-        // Add to new stage list
-        const toKey = toStageId === 'unassigned' ? null : toStageId;
-        if (!this.contactsByStage[toKey]) {
-          this.contactsByStage[toKey] = [];
-        }
-        this.contactsByStage[toKey].push(updatedContact);
 
         // Persist via API (per D-10: PATCH contact with pipeline_stage_id)
-        await ContactAPI.update(contactId, {
-          pipeline_stage_id: toStageId === 'unassigned' ? null : toStageId,
-        });
+        const apiPayload = { pipeline_stage_id: toStageId === 'unassigned' ? null : toStageId };
+        console.log('[pipeline] API request:', { contactId, ...apiPayload });
+        await ContactAPI.update(contactId, apiPayload);
+        console.log('[pipeline] API SUCCESS - contact moved');
 
         this.setUIFlag({ updatingContact: false });
       } catch (error) {
-        // Revert optimistic update on failure
+        console.log('[pipeline] API ERROR:', error?.message || error, '| status:', error?.response?.status);
+        // Show error toast on failure
         useAlert(
           window.VT_I18N.CONTACT_MOVE_ERROR ||
             'Failed to move contact. Please try again.'
         );
-
-        // Try to restore contact to original stage
-        const contact = this.contacts[contactId];
-        if (contact) {
-          this.contacts[contactId] = {
-            ...contact,
-            pipeline_stage_id:
-              fromStageId === 'unassigned' ? null : fromStageId,
-          };
-
-          // Re-add to original stage
-          const fromKey = fromStageId === 'unassigned' ? null : fromStageId;
-          if (!this.contactsByStage[fromKey]) {
-            this.contactsByStage[fromKey] = [];
-          }
-          if (
-            !this.contactsByStage[fromKey].find(c => c.id === contactId)
-          ) {
-            this.contactsByStage[fromKey].push(contact);
-          }
-          // Remove from wrong stage
-          const toKey = toStageId === 'unassigned' ? null : toStageId;
-          const toContacts = this.contactsByStage[toKey] || [];
-          this.contactsByStage[toKey] = toContacts.filter(
-            c => c.id !== contactId
-          );
-        }
-
         this.setUIFlag({ updatingContact: false });
+        throw error; // Re-throw so caller can handle
       }
     },
   }),

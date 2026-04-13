@@ -4,6 +4,7 @@ import { usePipelineStore } from '../../../../stores/pipeline';
 import { useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { useAdmin } from 'dashboard/composables/useAdmin';
+import { OnClickOutside } from '@vueuse/components';
 import KanbanBoard from 'dashboard/components/kanban/KanbanBoard.vue';
 import StageManagementModal from 'dashboard/components/pipeline/StageManagementModal.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
@@ -16,6 +17,7 @@ const store = useStore();
 const { isAdmin } = useAdmin();
 
 const showManageStages = ref(false);
+const isStageFilterOpen = ref(false);
 
 // Loading state
 const isLoading = ref(true);
@@ -129,7 +131,10 @@ const fetchUnassignedContacts = async () => {
 // contactsMap and contactsByStage refs. After the store action, we must sync the local
 // refs back so the Kanban/list re-renders correctly.
 const syncContactsAfterStageChange = (contactId, fromStageId, toStageId) => {
+  console.log('[leads] syncContactsAfterStageChange called', { contactId, fromStageId, toStageId });
+  console.log('[leads] pipelineStore.contacts:', pipelineStore.contacts);
   const updatedContact = pipelineStore.contacts[contactId];
+  console.log('[leads] updatedContact from pipelineStore.contacts:', updatedContact ? updatedContact.id : 'UNDEFINED - this is the bug!');
   if (!updatedContact) return;
 
   // Update contactsMap with the updated contact from the store
@@ -194,6 +199,8 @@ const handleSidebarStageChange = async ({ toStageId }) => {
     // Sync store state back to LeadsIndex local refs
     syncContactsAfterStageChange(contact.id, normalizedFrom, normalizedTo);
   } catch (error) {
+    console.log('[leads] handleSidebarStageChange catch block firing, error:', error?.message || error, '| contactId:', contact.id);
+    console.log('[leads] RELOADING contacts (this causes revert!)');
     // Store action handles revert + toast. Reload to ensure consistency.
     await fetchContactsForAllStages();
     await fetchUnassignedContacts();
@@ -258,6 +265,7 @@ const handleDrop = async event => {
   contactsByStage.value = { ...contactsByStage.value };
 
   // Call store action for API call with revert on failure
+  console.log('[leads] handleDrop calling moveContactToStage', { contactId, fromKey, toKey });
   try {
     await pipelineStore.moveContactToStage({
       contactId,
@@ -267,6 +275,8 @@ const handleDrop = async event => {
     // Sync store state back to LeadsIndex local refs (Pitfall #2 fix)
     syncContactsAfterStageChange(contactId, fromNumKey, toNumKey);
   } catch (error) {
+    console.log('[leads] handleDrop catch block firing, error:', error?.message || error, '| contactId:', contactId);
+    console.log('[leads] RELOADING contacts (this causes revert!)');
     // Store action handles revert + toast; reload contacts to ensure consistency
     await fetchContactsForAllStages();
     await fetchUnassignedContacts();
@@ -321,6 +331,7 @@ const activeFilterLabel = computed(() => {
 const handleFilterChange = ({ action, value }) => {
   if (action === 'filter') {
     activeFilter.value = value;
+    isStageFilterOpen.value = false;
   }
 };
 
@@ -401,21 +412,24 @@ const formatDate = dateStr => {
       <h1 class="text-base font-semibold text-n-slate-12">Pipeline</h1>
       <div class="flex items-center gap-2">
         <!-- Stage Filter Dropdown -->
-        <DropdownMenu
-          :menu-items="stageFilterOptions"
-          position="bottom-end"
-          @action="handleFilterChange"
-        >
-          <template #trigger>
+        <div class="relative">
+          <OnClickOutside @trigger="isStageFilterOpen = false">
             <Button
               variant="outline"
               color="slate"
               size="sm"
               icon="i-lucide-filter"
               :label="activeFilterLabel"
+              @click="isStageFilterOpen = !isStageFilterOpen"
             />
-          </template>
-        </DropdownMenu>
+            <DropdownMenu
+              v-if="isStageFilterOpen"
+              :menu-items="stageFilterOptions"
+              class="absolute left-0 top-full mt-2 z-50"
+              @action="handleFilterChange"
+            />
+          </OnClickOutside>
+        </div>
 
         <!-- View Toggle Button Group -->
         <div class="flex gap-0 rounded-lg border border-n-weak overflow-hidden">
