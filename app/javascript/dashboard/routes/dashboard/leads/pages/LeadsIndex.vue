@@ -18,6 +18,92 @@ const { isAdmin } = useAdmin();
 
 const showManageStages = ref(false);
 const isStageFilterOpen = ref(false);
+const isMoveStageOpen = ref(false);
+
+// Bulk selection state
+const selectedContactIds = ref([]);
+
+const showBulkActionBar = computed(() => selectedContactIds.value.length > 0);
+const selectedCount = computed(() => selectedContactIds.value.length);
+const isAllSelected = computed(() => {
+  if (sortedContacts.value.length === 0) return false;
+  return sortedContacts.value.every(c =>
+    selectedContactIds.value.includes(c.id)
+  );
+});
+
+const toggleContactSelection = contactId => {
+  const index = selectedContactIds.value.indexOf(contactId);
+  if (index === -1) {
+    selectedContactIds.value.push(contactId);
+  } else {
+    selectedContactIds.value.splice(index, 1);
+  }
+};
+
+const toggleAllSelection = () => {
+  if (isAllSelected.value) {
+    selectedContactIds.value = [];
+  } else {
+    selectedContactIds.value = sortedContacts.value.map(c => c.id);
+  }
+};
+
+const clearSelection = () => {
+  selectedContactIds.value = [];
+};
+
+const bulkMoveToStage = async stageId => {
+  const contactsToMove = selectedContactIds.value;
+  isMoveStageOpen.value = false;
+  try {
+    for (const contactId of contactsToMove) {
+      const contact = contactsMap.value[contactId];
+      if (!contact) continue;
+      const fromStageId = contact.pipeline_stage_id;
+      const fromKey = fromStageId == null ? null : Number(fromStageId);
+      const toKey = stageId == null ? null : Number(stageId);
+      if (fromKey === toKey) continue;
+      await pipelineStore.moveContactToStage({
+        contactId,
+        fromStageId: String(fromKey ?? 'unassigned'),
+        toStageId: String(toKey ?? 'unassigned'),
+      });
+      syncContactsAfterStageChange(contactId, fromKey, toKey);
+    }
+    useAlert(`${contactsToMove.length} contacts moved successfully.`);
+    clearSelection();
+  } catch (error) {
+    useAlert('Failed to move contacts. Please try again.');
+  }
+};
+
+const bulkDelete = async () => {
+  if (
+    !confirm(
+      `Delete ${selectedContactIds.value.length} contacts? This cannot be undone.`
+    )
+  )
+    return;
+  try {
+    for (const contactId of selectedContactIds.value) {
+      await store.dispatch('contacts/delete', contactId);
+      delete contactsMap.value[contactId];
+    }
+    useAlert(`${selectedContactIds.value.length} contacts deleted.`);
+    clearSelection();
+    await loadAllContacts();
+  } catch (error) {
+    useAlert('Failed to delete contacts. Please try again.');
+  }
+};
+
+const handleBulkStageChange = ({ action, value }) => {
+  if (action === 'bulk-stage') {
+    bulkMoveToStage(value);
+    isMoveStageOpen.value = false;
+  }
+};
 
 // Loading state
 const isLoading = ref(true);
@@ -65,7 +151,9 @@ const stageContacts = computed(() => {
       // Keep contact only if its canonical pipeline_stage_id matches this stage
       if (actualStage !== stage.id) {
         const inStages = contactToStages[c.id] || [];
-        console.log(`[stageContacts] DEDUP: contact ${c.id} pipeline_stage_id=${actualStage} != stage ${stage.id}, inStages=${JSON.stringify(inStages)}, removing`);
+        console.log(
+          `[stageContacts] DEDUP: contact ${c.id} pipeline_stage_id=${actualStage} != stage ${stage.id}, inStages=${JSON.stringify(inStages)}, removing`
+        );
         return false;
       }
       return true;
@@ -104,7 +192,10 @@ const loadAllContacts = async () => {
   console.log('[leads] loadAllContacts called');
   // Get contacts from Vuex store (fetched by stages)
   const allContacts = Object.values(store.state.contacts?.records || {});
-  console.log('[leads] loadAllContacts allContacts:', allContacts.map(c => ({id: c.id, stage: c.pipeline_stage_id})));
+  console.log(
+    '[leads] loadAllContacts allContacts:',
+    allContacts.map(c => ({ id: c.id, stage: c.pipeline_stage_id }))
+  );
 
   // Group contacts by pipeline_stage_id
   const grouped = {};
@@ -168,11 +259,27 @@ const fetchUnassignedContacts = async () => {
 //
 // The `skipContactsByStageSync` parameter controls this: true = skip contactsByStage (drag-drop),
 // false = update contactsByStage (sidebar).
-const syncContactsAfterStageChange = (contactId, fromStageId, toStageId, skipContactsByStageSync = false) => {
-  console.log('[leads] syncContactsAfterStageChange called', { contactId, fromStageId, toStageId, skipContactsByStageSync });
-  console.log('[leads] store.state.contacts.records keys:', Object.keys(store.state.contacts?.records || {}));
+const syncContactsAfterStageChange = (
+  contactId,
+  fromStageId,
+  toStageId,
+  skipContactsByStageSync = false
+) => {
+  console.log('[leads] syncContactsAfterStageChange called', {
+    contactId,
+    fromStageId,
+    toStageId,
+    skipContactsByStageSync,
+  });
+  console.log(
+    '[leads] store.state.contacts.records keys:',
+    Object.keys(store.state.contacts?.records || {})
+  );
   const updatedContact = store.state.contacts?.records?.[contactId];
-  console.log('[leads] updatedContact from store:', updatedContact ? updatedContact.id : 'UNDEFINED!');
+  console.log(
+    '[leads] updatedContact from store:',
+    updatedContact ? updatedContact.id : 'UNDEFINED!'
+  );
   if (!updatedContact) return;
 
   // Always update contactsMap with the fresh contact data from Vuex (this is always correct)
@@ -181,29 +288,41 @@ const syncContactsAfterStageChange = (contactId, fromStageId, toStageId, skipCon
   // Skip contactsByStage modification for drag-drop (already handled by handleDrop's optimistic update)
   // Only modify contactsByStage for sidebar changes where no optimistic update occurred.
   if (skipContactsByStageSync) {
-    console.log('[leads] syncContactsAfterStageChange: skipping contactsByStage sync (drag-drop flow, already optimistic)');
+    console.log(
+      '[leads] syncContactsAfterStageChange: skipping contactsByStage sync (drag-drop flow, already optimistic)'
+    );
     return;
   }
 
   // Sync contactsByStage: remove from source, add to destination (sidebar flow only)
-  const fromKey = (fromStageId === null || fromStageId === 'unassigned') ? null : Number(fromStageId);
-  const toKey = (toStageId === null || toStageId === 'unassigned') ? null : Number(toStageId);
-  console.log('[leads] syncContactsAfterStageChange contactsByStage update', { fromKey, toKey });
+  const fromKey =
+    fromStageId === null || fromStageId === 'unassigned'
+      ? null
+      : Number(fromStageId);
+  const toKey =
+    toStageId === null || toStageId === 'unassigned' ? null : Number(toStageId);
+  console.log('[leads] syncContactsAfterStageChange contactsByStage update', {
+    fromKey,
+    toKey,
+  });
 
   // Remove from source stage
   if (fromKey !== null && contactsByStage.value[fromKey]) {
     contactsByStage.value[fromKey] = contactsByStage.value[fromKey].filter(
       c => String(c.id) !== String(contactId)
     );
-  } else if (fromKey === null && contactsByStage.value[null]) {
-    contactsByStage.value[null] = contactsByStage.value[null].filter(
+  } else if (fromKey === null && contactsByStage.value.null) {
+    contactsByStage.value.null = contactsByStage.value.null.filter(
       c => String(c.id) !== String(contactId)
     );
   }
 
   // Add to destination stage
   if (toKey !== null) {
-    console.log('[leads] before add - contactsByStage[' + toKey + ']:', contactsByStage.value[toKey]?.map(c => c.id));
+    console.log(
+      '[leads] before add - contactsByStage[' + toKey + ']:',
+      contactsByStage.value[toKey]?.map(c => c.id)
+    );
     if (!contactsByStage.value[toKey]) {
       contactsByStage.value[toKey] = [];
     }
@@ -211,20 +330,32 @@ const syncContactsAfterStageChange = (contactId, fromStageId, toStageId, skipCon
       c => String(c.id) !== String(contactId)
     );
     contactsByStage.value[toKey].push(updatedContact);
-    console.log('[leads] after add - contactsByStage[' + toKey + ']:', contactsByStage.value[toKey]?.map(c => c.id));
+    console.log(
+      '[leads] after add - contactsByStage[' + toKey + ']:',
+      contactsByStage.value[toKey]?.map(c => c.id)
+    );
   } else if (toKey === null) {
-    console.log('[leads] before add - contactsByStage[null]:', contactsByStage.value[null]?.map(c => c.id));
-    if (!contactsByStage.value[null]) {
-      contactsByStage.value[null] = [];
+    console.log(
+      '[leads] before add - contactsByStage[null]:',
+      contactsByStage.value.null?.map(c => c.id)
+    );
+    if (!contactsByStage.value.null) {
+      contactsByStage.value.null = [];
     }
-    contactsByStage.value[null] = contactsByStage.value[null].filter(
+    contactsByStage.value.null = contactsByStage.value.null.filter(
       c => String(c.id) !== String(contactId)
     );
-    contactsByStage.value[null].push(updatedContact);
-    console.log('[leads] after add - contactsByStage[null]:', contactsByStage.value[null]?.map(c => c.id));
+    contactsByStage.value.null.push(updatedContact);
+    console.log(
+      '[leads] after add - contactsByStage[null]:',
+      contactsByStage.value.null?.map(c => c.id)
+    );
   }
 
-  console.log('[leads] contactsByStage keys:', Object.keys(contactsByStage.value));
+  console.log(
+    '[leads] contactsByStage keys:',
+    Object.keys(contactsByStage.value)
+  );
   // Force Vue reactivity on contactsByStage
   contactsByStage.value = { ...contactsByStage.value };
 };
@@ -261,7 +392,12 @@ const handleSidebarStageChange = async ({ toStageId }) => {
     // Sync store state back to LeadsIndex local refs
     syncContactsAfterStageChange(contact.id, normalizedFrom, normalizedTo);
   } catch (error) {
-    console.log('[leads] handleSidebarStageChange catch block firing, error:', error?.message || error, '| contactId:', contact.id);
+    console.log(
+      '[leads] handleSidebarStageChange catch block firing, error:',
+      error?.message || error,
+      '| contactId:',
+      contact.id
+    );
     console.log('[leads] RELOADING contacts (this causes revert!)');
     // Store action handles revert + toast. Reload to ensure consistency.
     await fetchContactsForAllStages();
@@ -307,9 +443,20 @@ const handleDrop = async event => {
   const toNumKey =
     toKey === 'null' ? null : toKey === null ? null : Number(toKey);
 
-  console.log('[handleDrop] Keys normalized:', { fromKey, toKey, fromNumKey, toNumKey });
-  console.log('[handleDrop] contactsByStage BEFORE optimistic update:', JSON.parse(JSON.stringify(contactsByStage.value)));
-  console.log('[handleDrop] contactsMap[contactId] BEFORE:', contactsMap.value[contactId]?.pipeline_stage_id);
+  console.log('[handleDrop] Keys normalized:', {
+    fromKey,
+    toKey,
+    fromNumKey,
+    toNumKey,
+  });
+  console.log(
+    '[handleDrop] contactsByStage BEFORE optimistic update:',
+    JSON.parse(JSON.stringify(contactsByStage.value))
+  );
+  console.log(
+    '[handleDrop] contactsMap[contactId] BEFORE:',
+    contactsMap.value[contactId]?.pipeline_stage_id
+  );
 
   // Optimistically update contactsMap
   // Use toNumKey (NUMBER) to match the type that loadAllContacts uses for grouping.
@@ -319,7 +466,10 @@ const handleDrop = async event => {
     ...contact,
     pipeline_stage_id: toNumKey,
   };
-  console.log('[handleDrop] contactsMap[contactId] AFTER:', contactsMap.value[contactId]?.pipeline_stage_id);
+  console.log(
+    '[handleDrop] contactsMap[contactId] AFTER:',
+    contactsMap.value[contactId]?.pipeline_stage_id
+  );
 
   // Remove from source stage (handles both numeric stage and unassigned/null)
   // Normalize contactId for comparison (both may be strings or numbers)
@@ -332,13 +482,17 @@ const handleDrop = async event => {
     const sourceArr = contactsByStage.value[fromKeyForRemove] || [];
     const filteredSource = sourceArr.filter(c => Number(c.id) !== contactIdNum);
     contactsByStage.value[fromKeyForRemove] = filteredSource;
-    console.log(`[handleDrop] Removed from stage ${fromKeyForRemove}: before=${sourceArr.map(c => c.id)}, after=${filteredSource.map(c => c.id)}`);
-  } else if (fromKeyForRemove === null && contactsByStage.value[null]) {
+    console.log(
+      `[handleDrop] Removed from stage ${fromKeyForRemove}: before=${sourceArr.map(c => c.id)}, after=${filteredSource.map(c => c.id)}`
+    );
+  } else if (fromKeyForRemove === null && contactsByStage.value.null) {
     // Contact was in unassigned column
-    const sourceArr = contactsByStage.value[null] || [];
+    const sourceArr = contactsByStage.value.null || [];
     const filteredSource = sourceArr.filter(c => Number(c.id) !== contactIdNum);
-    contactsByStage.value[null] = filteredSource;
-    console.log(`[handleDrop] Removed from unassigned: before=${sourceArr.map(c => c.id)}, after=${filteredSource.map(c => c.id)}`);
+    contactsByStage.value.null = filteredSource;
+    console.log(
+      `[handleDrop] Removed from unassigned: before=${sourceArr.map(c => c.id)}, after=${filteredSource.map(c => c.id)}`
+    );
   }
 
   // Initialize and clear destination stage (remove contact if already there)
@@ -349,33 +503,45 @@ const handleDrop = async event => {
     const targetArr = contactsByStage.value[toKeyForRemove] || [];
     const filteredTarget = targetArr.filter(c => Number(c.id) !== contactIdNum);
     contactsByStage.value[toKeyForRemove] = filteredTarget;
-    console.log(`[handleDrop] Cleared from target stage ${toKeyForRemove}: before=${targetArr.map(c => c.id)}, after=${filteredTarget.map(c => c.id)}`);
+    console.log(
+      `[handleDrop] Cleared from target stage ${toKeyForRemove}: before=${targetArr.map(c => c.id)}, after=${filteredTarget.map(c => c.id)}`
+    );
   } else if (toKeyForRemove === null) {
-    if (!contactsByStage.value[null]) {
-      contactsByStage.value[null] = [];
+    if (!contactsByStage.value.null) {
+      contactsByStage.value.null = [];
     }
-    const targetArr = contactsByStage.value[null] || [];
+    const targetArr = contactsByStage.value.null || [];
     const filteredTarget = targetArr.filter(c => Number(c.id) !== contactIdNum);
-    contactsByStage.value[null] = filteredTarget;
+    contactsByStage.value.null = filteredTarget;
   }
   // Force reactivity
   contactsByStage.value = { ...contactsByStage.value };
-  console.log('[handleDrop] contactsByStage AFTER remove:', JSON.parse(JSON.stringify(contactsByStage.value)));
+  console.log(
+    '[handleDrop] contactsByStage AFTER remove:',
+    JSON.parse(JSON.stringify(contactsByStage.value))
+  );
 
   // Add contact to new stage
   const movedContact = contactsMap.value[contactId];
   if (toNumKey !== null) {
     contactsByStage.value[toNumKey].push(movedContact);
   } else if (toNumKey === null) {
-    if (!contactsByStage.value[null]) contactsByStage.value[null] = [];
-    contactsByStage.value[null].push(movedContact);
+    if (!contactsByStage.value.null) contactsByStage.value.null = [];
+    contactsByStage.value.null.push(movedContact);
   }
   // Force reactivity again so new stage shows the contact
   contactsByStage.value = { ...contactsByStage.value };
-  console.log('[handleDrop] contactsByStage AFTER add:', JSON.parse(JSON.stringify(contactsByStage.value)));
+  console.log(
+    '[handleDrop] contactsByStage AFTER add:',
+    JSON.parse(JSON.stringify(contactsByStage.value))
+  );
 
   // Call store action for API call with revert on failure
-  console.log('[handleDrop] calling moveContactToStage', { contactId, fromKey, toKey });
+  console.log('[handleDrop] calling moveContactToStage', {
+    contactId,
+    fromKey,
+    toKey,
+  });
   try {
     await pipelineStore.moveContactToStage({
       contactId,
@@ -383,17 +549,30 @@ const handleDrop = async event => {
       toStageId: toKey,
     });
     console.log('[handleDrop] moveContactToStage SUCCESS');
-    console.log('[handleDrop] Vuex records[contactId] AFTER API:', store.state.contacts?.records?.[contactId]?.pipeline_stage_id);
+    console.log(
+      '[handleDrop] Vuex records[contactId] AFTER API:',
+      store.state.contacts?.records?.[contactId]?.pipeline_stage_id
+    );
     // Sync store state back to LeadsIndex local refs.
     // skipContactsByStageSync=true: contactsByStage was already updated optimistically
     // by handleDrop above. Vuex still has old pipeline_stage_id, so we must NOT
     // re-modify contactsByStage (would re-add to wrong stage).
-    console.log('[handleDrop] calling syncContactsAfterStageChange with skip=true');
+    console.log(
+      '[handleDrop] calling syncContactsAfterStageChange with skip=true'
+    );
     syncContactsAfterStageChange(contactId, fromNumKey, toNumKey, true);
-    console.log('[handleDrop] contactsByStage AFTER sync:', JSON.parse(JSON.stringify(contactsByStage.value)));
+    console.log(
+      '[handleDrop] contactsByStage AFTER sync:',
+      JSON.parse(JSON.stringify(contactsByStage.value))
+    );
     console.log('[handleDrop] ========== END (SUCCESS) ==========');
   } catch (error) {
-    console.log('[handleDrop] catch block firing, error:', error?.message || error, '| contactId:', contactId);
+    console.log(
+      '[handleDrop] catch block firing, error:',
+      error?.message || error,
+      '| contactId:',
+      contactId
+    );
     console.log('[leads] RELOADING contacts (this causes revert!)');
     // Store action handles revert + toast; reload contacts to ensure consistency
     await fetchContactsForAllStages();
@@ -426,8 +605,18 @@ const setView = view => {
 
 const stageFilterOptions = computed(() => {
   const options = [
-    { action: 'filter', value: 'all', label: 'All stages', isSelected: activeFilter.value === 'all' },
-    { action: 'filter', value: 'unassigned', label: 'Unassigned', isSelected: activeFilter.value === 'unassigned' },
+    {
+      action: 'filter',
+      value: 'all',
+      label: 'All stages',
+      isSelected: activeFilter.value === 'all',
+    },
+    {
+      action: 'filter',
+      value: 'unassigned',
+      label: 'Unassigned',
+      isSelected: activeFilter.value === 'unassigned',
+    },
   ];
   orderedStages.value.forEach(stage => {
     options.push({
@@ -445,6 +634,14 @@ const activeFilterLabel = computed(() => {
   if (activeFilter.value === 'unassigned') return 'Unassigned';
   const stage = orderedStages.value.find(s => s.id === activeFilter.value);
   return stage ? stage.name : 'All stages';
+});
+
+const bulkStageOptions = computed(() => {
+  const options = [{ action: 'bulk-stage', value: null, label: 'Unassigned' }];
+  orderedStages.value.forEach(stage => {
+    options.push({ action: 'bulk-stage', value: stage.id, label: stage.name });
+  });
+  return options;
 });
 
 const handleFilterChange = ({ action, value }) => {
@@ -465,7 +662,9 @@ const filteredContacts = computed(() => {
   if (activeFilter.value === 'unassigned') {
     return all.filter(c => !c.pipeline_stage_id);
   }
-  return all.filter(c => String(c.pipeline_stage_id) === String(activeFilter.value));
+  return all.filter(
+    c => String(c.pipeline_stage_id) === String(activeFilter.value)
+  );
 });
 
 const sortedContacts = computed(() => {
@@ -520,14 +719,20 @@ const formatDate = dateStr => {
     if (diffDays === 1) return 'Yesterday';
     return `${diffDays}d ago`;
   }
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 };
 </script>
 
 <template>
   <div class="leads-index">
     <!-- Header with page title, filter, view toggle, and manage stages -->
-    <div class="flex items-center justify-between px-4 py-3 border-b border-n-weak">
+    <div
+      class="flex items-center justify-between px-4 py-3 border-b border-n-weak"
+    >
       <h1 class="text-base font-semibold text-n-slate-12">Pipeline</h1>
       <div class="flex items-center gap-2">
         <!-- Stage Filter Dropdown -->
@@ -601,22 +806,34 @@ const formatDate = dateStr => {
           <div class="kanban-board flex gap-4">
             <!-- Skeleton for unassigned column -->
             <div class="flex-shrink-0 w-70">
-              <div class="flex items-center justify-between px-3 py-2.5 mb-2 rounded-t-lg bg-n-alpha-1">
+              <div
+                class="flex items-center justify-between px-3 py-2.5 mb-2 rounded-t-lg bg-n-alpha-1"
+              >
                 <div class="h-4 w-24 bg-n-slate-3 rounded animate-pulse" />
                 <div class="h-5 w-5 bg-n-slate-3 rounded-full animate-pulse" />
               </div>
               <div class="flex flex-col gap-2 p-1">
-                <div v-for="i in 3" :key="i" class="h-14 bg-n-slate-3 rounded-lg animate-pulse" />
+                <div
+                  v-for="i in 3"
+                  :key="i"
+                  class="h-14 bg-n-slate-3 rounded-lg animate-pulse"
+                />
               </div>
             </div>
             <!-- Skeleton for stage columns -->
             <div v-for="i in 2" :key="i" class="flex-shrink-0 w-70">
-              <div class="flex items-center justify-between px-3 py-2.5 mb-2 rounded-t-lg bg-n-alpha-1">
+              <div
+                class="flex items-center justify-between px-3 py-2.5 mb-2 rounded-t-lg bg-n-alpha-1"
+              >
                 <div class="h-4 w-32 bg-n-slate-3 rounded animate-pulse" />
                 <div class="h-5 w-5 bg-n-slate-3 rounded-full animate-pulse" />
               </div>
               <div class="flex flex-col gap-2 p-1">
-                <div v-for="j in 2" :key="j" class="h-14 bg-n-slate-3 rounded-lg animate-pulse" />
+                <div
+                  v-for="j in 2"
+                  :key="j"
+                  class="h-14 bg-n-slate-3 rounded-lg animate-pulse"
+                />
               </div>
             </div>
           </div>
@@ -629,8 +846,10 @@ const formatDate = dateStr => {
         :unassigned-contacts="unassignedContacts"
         :unassigned-count="unassignedCount"
         :is-loading="isLoading"
+        :selected-contact-ids="selectedContactIds"
         @drop="handleDrop"
         @card-click="handleCardClick"
+        @card-select="toggleContactSelection"
       />
     </template>
 
@@ -641,27 +860,63 @@ const formatDate = dateStr => {
         <table class="min-w-full table-auto">
           <thead class="border-t border-n-weak bg-n-alpha-1">
             <tr>
-              <th v-for="(header, i) in ['Name', 'Email', 'Phone', 'Stage', 'Last Activity', 'Created At']" :key="i" class="py-4 ltr:pr-4 rtl:pl-4 text-start text-xs font-semibold text-n-slate-12 uppercase tracking-wide">Loading...</th>
+              <th class="py-4 ltr:pr-4 rtl:pl-4 text-start w-10"></th>
+              <th
+                v-for="(header, i) in [
+                  'Name',
+                  'Email',
+                  'Company',
+                  'Phone',
+                  'Stage',
+                  'Last Activity',
+                  'Created',
+                ]"
+                :key="i"
+                class="py-4 ltr:pr-4 rtl:pl-4 text-start text-xs font-semibold text-n-slate-12 uppercase tracking-wide"
+              >
+                Loading...
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="i in 5" :key="i" class="border-b border-n-weak">
-              <td class="py-3 px-4"><div class="h-4 w-32 bg-n-slate-3 rounded animate-pulse" /></td>
-              <td class="py-3 px-4"><div class="h-4 w-40 bg-n-slate-3 rounded animate-pulse" /></td>
-              <td class="py-3 px-4"><div class="h-4 w-24 bg-n-slate-3 rounded animate-pulse" /></td>
-              <td class="py-3 px-4"><div class="h-4 w-20 bg-n-slate-3 rounded animate-pulse" /></td>
-              <td class="py-3 px-4"><div class="h-4 w-24 bg-n-slate-3 rounded animate-pulse" /></td>
-              <td class="py-3 px-4"><div class="h-4 w-20 bg-n-slate-3 rounded animate-pulse" /></td>
+              <td class="py-3 px-4">
+                <div class="h-4 w-32 bg-n-slate-3 rounded animate-pulse" />
+              </td>
+              <td class="py-3 px-4">
+                <div class="h-4 w-40 bg-n-slate-3 rounded animate-pulse" />
+              </td>
+              <td class="py-3 px-4">
+                <div class="h-4 w-24 bg-n-slate-3 rounded animate-pulse" />
+              </td>
+              <td class="py-3 px-4">
+                <div class="h-4 w-20 bg-n-slate-3 rounded animate-pulse" />
+              </td>
+              <td class="py-3 px-4">
+                <div class="h-4 w-24 bg-n-slate-3 rounded animate-pulse" />
+              </td>
+              <td class="py-3 px-4">
+                <div class="h-4 w-20 bg-n-slate-3 rounded animate-pulse" />
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <!-- Actual list table -->
-      <div v-else class="overflow-auto" style="height: calc(100vh - 10rem);">
+      <div v-else class="overflow-auto" style="height: calc(100vh - 10rem)">
         <table class="min-w-full table-auto divide-y divide-n-weak">
           <thead class="border-t border-n-weak bg-n-alpha-1 sticky top-0 z-10">
             <tr>
+              <th class="py-3 ltr:pr-4 rtl:pl-4 text-start w-10">
+                <input
+                  type="checkbox"
+                  :checked="isAllSelected"
+                  :indeterminate="selectedCount > 0 && !isAllSelected"
+                  class="w-4 h-4 rounded border-n-slate-6 text-n-brand focus:ring-n-brand cursor-pointer"
+                  @change="toggleAllSelection"
+                />
+              </th>
               <!-- Name column (sortable) -->
               <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
                 <button
@@ -669,20 +924,36 @@ const formatDate = dateStr => {
                   @click="toggleSort('name')"
                 >
                   Name
-                  <span v-if="sortKey === 'name'" class="i-lucide-chevrons-up-down text-n-slate-9 size-3" />
-                  <span v-else class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-40" />
+                  <span
+                    v-if="sortKey === 'name'"
+                    class="i-lucide-chevrons-up-down text-n-slate-9 size-3"
+                  />
+                  <span
+                    v-else
+                    class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-70"
+                  />
                 </button>
               </th>
               <!-- Email column (sortable) -->
-              <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
+              <th class="py-3 ltr:pr-4 rtl:pl-4 text-start w-48">
                 <button
                   class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide flex items-center gap-1 hover:text-n-brand transition-colors"
                   @click="toggleSort('email')"
                 >
                   Email
-                  <span v-if="sortKey === 'email'" class="i-lucide-chevrons-up-down text-n-slate-9 size-3" />
-                  <span v-else class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-40" />
+                  <span
+                    v-if="sortKey === 'email'"
+                    class="i-lucide-chevrons-up-down text-n-slate-9 size-3"
+                  />
+                  <span
+                    v-else
+                    class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-70"
+                  />
                 </button>
+              </th>
+              <!-- Company column -->
+              <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
+                <span class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide">Company</span>
               </th>
               <!-- Phone column (not sortable) -->
               <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
@@ -695,8 +966,14 @@ const formatDate = dateStr => {
                   @click="toggleSort('pipeline_stage_id')"
                 >
                   Stage
-                  <span v-if="sortKey === 'pipeline_stage_id'" class="i-lucide-chevrons-up-down text-n-slate-9 size-3" />
-                  <span v-else class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-40" />
+                  <span
+                    v-if="sortKey === 'pipeline_stage_id'"
+                    class="i-lucide-chevrons-up-down text-n-slate-9 size-3"
+                  />
+                  <span
+                    v-else
+                    class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-70"
+                  />
                 </button>
               </th>
               <!-- Last Activity column (sortable) -->
@@ -706,88 +983,116 @@ const formatDate = dateStr => {
                   @click="toggleSort('last_activity_at')"
                 >
                   Last Activity
-                  <span v-if="sortKey === 'last_activity_at'" class="i-lucide-chevrons-up-down text-n-slate-9 size-3" />
-                  <span v-else class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-40" />
+                  <span
+                    v-if="sortKey === 'last_activity_at'"
+                    class="i-lucide-chevrons-up-down text-n-slate-9 size-3"
+                  />
+                  <span
+                    v-else
+                    class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-70"
+                  />
                 </button>
               </th>
-              <!-- Created At column (sortable) -->
+              <!-- Created column (sortable) -->
               <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
                 <button
                   class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide flex items-center gap-1 hover:text-n-brand transition-colors"
                   @click="toggleSort('created_at')"
                 >
-                  Created At
-                  <span v-if="sortKey === 'created_at'" class="i-lucide-chevrons-up-down text-n-slate-9 size-3" />
-                  <span v-else class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-40" />
+                  Created
+                  <span
+                    v-if="sortKey === 'created_at'"
+                    class="i-lucide-chevrons-up-down text-n-slate-9 size-3"
+                  />
+                  <span
+                    v-else
+                    class="i-lucide-chevrons-up text-n-slate-8 size-3 opacity-70"
+                  />
                 </button>
               </th>
             </tr>
           </thead>
           <tbody class="divide-y divide-n-weak">
-            <!-- Empty state: truly empty (no contacts at all) -->
-            <tr v-if="Object.keys(contactsMap).length === 0">
-              <td colspan="6" class="py-20 text-center">
-                <div class="flex flex-col items-center justify-center gap-3">
-                  <span class="i-lucide-inbox size-12 text-n-slate-8" />
-                  <h3 class="text-base font-semibold text-n-slate-12">No contacts yet</h3>
-                  <p class="text-sm text-n-slate-11 max-w-xs text-center">Add contacts to your pipeline to see them here.</p>
-                </div>
-              </td>
-            </tr>
-            <!-- Empty state: filtered empty -->
-            <tr v-else-if="sortedContacts.length === 0">
-              <td colspan="6" class="py-20 text-center">
-                <div class="flex flex-col items-center justify-center gap-3">
-                  <span class="i-lucide-filter size-12 text-n-slate-8" />
-                  <h3 class="text-base font-semibold text-n-slate-12">No contacts match your filters</h3>
-                  <p class="text-sm text-n-slate-11 max-w-xs text-center">Try selecting a different stage or clearing the filter.</p>
-                </div>
-              </td>
-            </tr>
-            <!-- Contact rows -->
-            <tr
-              v-else
-              v-for="contact in sortedContacts"
-              :key="contact.id"
-              class="border-b border-n-weak hover:bg-n-alpha-2 cursor-pointer transition-colors"
-              @click="handleRowClick(contact)"
-            >
-              <!-- Name cell -->
-              <td class="py-3 ltr:pr-4 rtl:pl-4">
-                <span class="text-sm font-medium text-n-slate-12 truncate block">{{ contact.name }}</span>
-              </td>
-              <!-- Email cell -->
-              <td class="py-3 ltr:pr-4 rtl:pl-4">
-                <span class="text-sm text-n-slate-11 truncate block">{{ contact.email || '—' }}</span>
-              </td>
-              <!-- Phone cell -->
-              <td class="py-3 ltr:pr-4 rtl:pl-4">
-                <span class="text-sm text-n-slate-11 truncate block">{{ contact.phone_number || '—' }}</span>
-              </td>
-              <!-- Stage cell -->
-              <td class="py-3 ltr:pr-4 rtl:pl-4">
-                <span
-                  v-if="getStageName(contact.pipeline_stage_id)"
-                  class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium text-n-slate-12"
-                  :style="{ backgroundColor: getStageColor(contact.pipeline_stage_id) + '20' }"
-                >
-                  <span
-                    class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    :style="{ backgroundColor: getStageColor(contact.pipeline_stage_id) }"
+            <template v-if="Object.keys(contactsMap).length === 0">
+              <tr>
+                <td colspan="8" class="py-20 text-center">
+                  <div class="flex flex-col items-center justify-center gap-3">
+                    <span class="i-lucide-inbox size-12 text-n-slate-8" />
+                    <h3 class="text-base font-semibold text-n-slate-12">
+                      No contacts yet
+                    </h3>
+                    <p class="text-sm text-n-slate-11 max-w-xs text-center">
+                      Add contacts to your pipeline to see them here.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            </template>
+            <template v-else-if="sortedContacts.length === 0">
+              <tr>
+                <td colspan="8" class="py-20 text-center">
+                  <div class="flex flex-col items-center justify-center gap-3">
+                    <span class="i-lucide-filter size-12 text-n-slate-8" />
+                    <h3 class="text-base font-semibold text-n-slate-12">
+                      No contacts match your filters
+                    </h3>
+                    <p class="text-sm text-n-slate-11 max-w-xs text-center">
+                      Try selecting a different stage or clearing the filter.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            </template>
+            <template v-else>
+              <tr
+                v-for="contact in sortedContacts"
+                :key="contact.id"
+                class="border-b border-n-weak hover:bg-n-alpha-2 cursor-pointer transition-colors border-l-2 border-l-transparent hover:border-l-n-brand"
+                :class="{ 'bg-n-alpha-2': selectedContactIds.includes(contact.id) }"
+                @click="handleRowClick(contact)"
+              >
+                <td class="py-3 ltr:pr-4 rtl:pl-4 w-10" @click.stop>
+                  <input
+                    type="checkbox"
+                    :checked="selectedContactIds.includes(contact.id)"
+                    class="w-4 h-4 rounded border-n-slate-6 text-n-brand focus:ring-n-brand cursor-pointer"
+                    @change="toggleContactSelection(contact.id)"
                   />
-                  {{ getStageName(contact.pipeline_stage_id) }}
-                </span>
-                <span v-else class="text-xs text-n-slate-11 italic">Unassigned</span>
-              </td>
-              <!-- Last Activity cell -->
-              <td class="py-3 ltr:pr-4 rtl:pl-4">
-                <span class="text-sm text-n-slate-11">{{ formatDate(contact.last_activity_at) }}</span>
-              </td>
-              <!-- Created At cell -->
-              <td class="py-3 ltr:pr-4 rtl:pl-4">
-                <span class="text-sm text-n-slate-11">{{ formatDate(contact.created_at) }}</span>
-              </td>
-            </tr>
+                </td>
+                <td class="py-3 ltr:pr-4 rtl:pl-4">
+                  <span class="text-sm font-medium text-n-slate-12 truncate block">{{ contact.name }}</span>
+                </td>
+                <td class="py-3 ltr:pr-4 rtl:pl-4 w-48">
+                  <span class="text-sm text-n-slate-11 truncate block">{{ contact.email || '—' }}</span>
+                </td>
+                <td class="py-3 ltr:pr-4 rtl:pl-4">
+                  <span class="text-sm text-n-slate-11 truncate block">{{ contact.company?.name || '—' }}</span>
+                </td>
+                <td class="py-3 ltr:pr-4 rtl:pl-4">
+                  <span class="text-sm text-n-slate-11 truncate block">{{ contact.phone_number || '—' }}</span>
+                </td>
+                <td class="py-3 ltr:pr-4 rtl:pl-4">
+                  <span
+                    v-if="getStageName(contact.pipeline_stage_id)"
+                    class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium text-n-slate-12"
+                    :style="{ backgroundColor: getStageColor(contact.pipeline_stage_id) + '20' }"
+                  >
+                    <span
+                      class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      :style="{ backgroundColor: getStageColor(contact.pipeline_stage_id) }"
+                    />
+                    {{ getStageName(contact.pipeline_stage_id) }}
+                  </span>
+                  <span v-else class="text-xs text-n-slate-11 italic">Unassigned</span>
+                </td>
+                <td class="py-3 ltr:pr-4 rtl:pl-4">
+                  <span class="text-sm text-n-slate-11">{{ formatDate(contact.last_activity_at) }}</span>
+                </td>
+                <td class="py-3 ltr:pr-4 rtl:pl-4">
+                  <span class="text-sm text-n-slate-11">{{ formatDate(contact.created_at) }}</span>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -803,6 +1108,56 @@ const formatDate = dateStr => {
       @close="isSidebarOpen = false"
       @stage-change="handleSidebarStageChange"
     />
+
+    <!-- Bulk Action Bar -->
+    <Transition
+      enter-active-class="transition-transform duration-300 ease-out"
+      enter-from-class="translate-y-8 opacity-0"
+      enter-to-class="translate-y-0 opacity-100"
+      leave-active-class="transition-transform duration-200 ease-in"
+      leave-from-class="translate-y-0 opacity-100"
+      leave-to-class="translate-y-8 opacity-0"
+    >
+      <div
+        v-if="showBulkActionBar"
+        class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white border border-n-weak rounded-xl px-5 py-3 shadow-lg z-50"
+      >
+        <span class="text-sm font-medium text-n-slate-12">{{ selectedCount }} contact{{ selectedCount !== 1 ? 's' : '' }} selected</span>
+        <div class="h-4 w-px bg-n-weak" />
+        <div class="relative">
+          <OnClickOutside @trigger="isMoveStageOpen = false">
+            <Button
+              variant="outline"
+              color="slate"
+              size="sm"
+              icon="i-lucide-arrow-right"
+              label="Move to stage"
+              @click="isMoveStageOpen = !isMoveStageOpen"
+            />
+            <DropdownMenu
+              v-if="isMoveStageOpen"
+              :menu-items="bulkStageOptions"
+              class="absolute left-0 bottom-full mb-2 z-50"
+              @action="handleBulkStageChange"
+            />
+          </OnClickOutside>
+        </div>
+        <Button
+          variant="outline"
+          color="red"
+          size="sm"
+          icon="i-lucide-trash-2"
+          label="Delete"
+          @click="bulkDelete"
+        />
+        <button
+          class="flex items-center justify-center w-7 h-7 rounded-full hover:bg-n-alpha-2 text-n-slate-8 hover:text-n-slate-12 transition-colors"
+          @click="clearSelection"
+        >
+          <span class="i-lucide-x size-4" />
+        </button>
+      </div>
+    </Transition>
   </div>
 </template>
 

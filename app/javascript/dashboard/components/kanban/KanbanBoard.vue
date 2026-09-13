@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import StageColumn from './StageColumn.vue';
 
 const props = defineProps({
@@ -23,17 +23,30 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  selectedContactIds: {
+    type: Array,
+    default: () => [],
+  },
 });
 
-const emit = defineEmits(['drop', 'card-click']);
+const emit = defineEmits(['drop', 'card-click', 'card-select']);
 
-// Stages ordered by position ascending (per D-12)
+const focusedColumnIndex = ref(0);
+const focusedCardIndex = ref(-1);
+
 const orderedStages = computed(() =>
   [...props.stages].sort((a, b) => a.position - b.position)
 );
 
+const allColumns = computed(() => {
+  const cols = [{ id: 'unassigned', contacts: props.unassignedContacts }];
+  orderedStages.value.forEach(s => {
+    cols.push({ id: s.id, contacts: props.contactsByStage[s.id] || [] });
+  });
+  return cols;
+});
+
 const handleDrop = (stageId, event) => {
-  console.log('[kanban] KanbanBoard received drop event', { stageId, event });
   emit('drop', event);
 };
 
@@ -41,7 +54,52 @@ const handleCardClick = contact => {
   emit('card-click', contact);
 };
 
-// NOTE: update:contacts event from StageColumn/vuedraggable is intentionally NOT handled here.
+const handleCardSelect = contactId => {
+  emit('card-select', contactId);
+};
+
+const handleBoardKeydown = event => {
+  const totalColumns = allColumns.value.length;
+  if (totalColumns === 0) return;
+
+  const currentColumn = allColumns.value[focusedColumnIndex.value];
+  const contacts = currentColumn?.contacts || [];
+  const maxCardIndex = contacts.length - 1;
+
+  switch (event.key) {
+    case 'ArrowRight':
+      event.preventDefault();
+      focusedColumnIndex.value = Math.min(
+        focusedColumnIndex.value + 1,
+        totalColumns - 1
+      );
+      focusedCardIndex.value = -1;
+      break;
+    case 'ArrowLeft':
+      event.preventDefault();
+      focusedColumnIndex.value = Math.max(focusedColumnIndex.value - 1, 0);
+      focusedCardIndex.value = -1;
+      break;
+    case 'ArrowDown':
+      event.preventDefault();
+      if (maxCardIndex >= 0) {
+        focusedCardIndex.value = Math.min(
+          focusedCardIndex.value + 1,
+          maxCardIndex
+        );
+      }
+      break;
+    case 'ArrowUp':
+      event.preventDefault();
+      focusedCardIndex.value = Math.max(focusedCardIndex.value - 1, -1);
+      break;
+    case 'Enter':
+      if (focusedCardIndex.value >= 0 && contacts[focusedCardIndex.value]) {
+        handleCardClick(contacts[focusedCardIndex.value]);
+      }
+      break;
+  }
+};
 // The Kanban board receives stage changes via the `drop` event -> handleDrop in LeadsIndex.
 // The update:contacts event fires synchronously during drag (before API call completes) and
 // would race with the optimistic update, causing contact duplicates in the UI.
@@ -49,7 +107,11 @@ const handleCardClick = contact => {
 </script>
 
 <template>
-  <div class="kanban-board-wrapper w-full overflow-x-auto overflow-y-hidden">
+  <div
+    class="kanban-board-wrapper w-full overflow-x-auto overflow-y-hidden"
+    tabindex="0"
+    @keydown="handleBoardKeydown"
+  >
     <div class="kanban-board flex gap-4 p-4 min-h-full">
       <!-- Unassigned column (leftmost, per D-05) -->
       <StageColumn
@@ -58,8 +120,11 @@ const handleCardClick = contact => {
         :is-loading="isLoading"
         :is-unassigned="true"
         :column-index="0"
+        :focused-card-index="focusedColumnIndex === 0 ? focusedCardIndex : -1"
+        :selected-contact-ids="selectedContactIds"
         @drop="handleDrop('unassigned', $event)"
         @card-click="handleCardClick"
+        @card-select="handleCardSelect"
       />
 
       <!-- Stage columns (ordered by position, per D-12) -->
@@ -71,8 +136,13 @@ const handleCardClick = contact => {
         :is-loading="isLoading"
         :is-unassigned="false"
         :column-index="index + 1"
+        :focused-card-index="
+          focusedColumnIndex === index + 1 ? focusedCardIndex : -1
+        "
+        :selected-contact-ids="selectedContactIds"
         @drop="handleDrop(stage.id, $event)"
         @card-click="handleCardClick"
+        @card-select="handleCardSelect"
       />
     </div>
   </div>

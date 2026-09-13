@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import Draggable from 'vuedraggable';
 import KanbanCard from './KanbanCard.vue';
+import Icon from 'dashboard/components-next/icon/Icon.vue';
 
 const props = defineProps({
   stage: {
@@ -24,13 +25,36 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  focusedCardIndex: {
+    type: Number,
+    default: -1,
+  },
+  selectedContactIds: {
+    type: Array,
+    default: () => [],
+  },
 });
 
-const emit = defineEmits(['drop', 'card-click', 'update:contacts']);
+const emit = defineEmits([
+  'drop',
+  'card-click',
+  'update:contacts',
+  'card-select',
+]);
 
 const stageName = computed(() => props.stage?.name || 'Unknown Stage');
 const stageColor = computed(() => props.stage?.color || '#6B7280');
 const contactCount = computed(() => props.contacts.length);
+const addedTodayCount = computed(() => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return props.contacts.filter(c => {
+    if (!c.created_at) return false;
+    const created = new Date(c.created_at);
+    created.setHours(0, 0, 0, 0);
+    return created.getTime() === today.getTime();
+  }).length;
+});
 
 const columnTitle = computed(() =>
   props.isUnassigned ? 'Unassigned' : stageName.value
@@ -51,7 +75,13 @@ const handleDragEnd = event => {
   const contactId = event.item?.dataset?.contactId;
   const fromStageId = event.from?.dataset?.stageId || null;
   const toStageId = event.to?.dataset?.stageId || null;
-  console.log('[kanban] drop event', { contactId, fromStageId, toStageId, fromIndex: event.oldIndex, toIndex: event.newIndex });
+  console.log('[kanban] drop event', {
+    contactId,
+    fromStageId,
+    toStageId,
+    fromIndex: event.oldIndex,
+    toIndex: event.newIndex,
+  });
   emit('drop', {
     contactId,
     fromStageId,
@@ -63,6 +93,10 @@ const handleDragEnd = event => {
 
 const onCardClick = contact => {
   emit('card-click', contact);
+};
+
+const onCardSelect = contactId => {
+  emit('card-select', contactId);
 };
 </script>
 
@@ -90,9 +124,16 @@ const onCardClick = contact => {
       </div>
       <!-- Contact count badge -->
       <span
-        class="inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-medium rounded-full bg-n-slate-4 text-n-slate-11"
+        class="relative inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-medium rounded-full"
+        :style="{ backgroundColor: stageColor + '33', color: stageColor }"
       >
         {{ contactCount }}
+        <span
+          v-if="addedTodayCount > 0"
+          class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-4 h-4 px-1 text-[10px] font-medium rounded-full bg-n-teal-4 text-n-teal-11"
+        >
+          +{{ addedTodayCount }}
+        </span>
       </span>
     </div>
 
@@ -100,11 +141,7 @@ const onCardClick = contact => {
     <div class="flex-1 overflow-y-auto min-h-0">
       <!-- Loading skeleton -->
       <div v-if="isLoading" class="flex flex-col gap-2 p-1">
-        <div
-          v-for="i in 3"
-          :key="i"
-          class="h-14 rounded-lg bg-n-slate-3 animate-pulse"
-        />
+        <div v-for="i in 3" :key="i" class="h-14 rounded-lg skeleton-shimmer" />
       </div>
 
       <!-- Draggable cards list -->
@@ -121,12 +158,14 @@ const onCardClick = contact => {
         @update:model-value="$emit('update:contacts', $event)"
         @end="handleDragEnd"
       >
-        <template #item="{ element }">
-          <div
-            :data-contact-id="element.id"
-            @click="onCardClick(element)"
-          >
-            <KanbanCard :contact="element" />
+        <template #item="{ element, index }">
+          <div :data-contact-id="element.id" @click="onCardClick(element)">
+            <KanbanCard
+              :contact="element"
+              :is-focused="index === focusedCardIndex"
+              :is-selected="selectedContactIds.includes(element.id)"
+              @select="onCardSelect"
+            />
           </div>
         </template>
 
@@ -134,9 +173,21 @@ const onCardClick = contact => {
         <template #footer>
           <div
             v-if="!isLoading && contacts.length === 0"
-            class="py-4 text-center text-xs text-n-slate-8 italic"
+            class="flex flex-col items-center justify-center py-6 gap-2"
           >
-            {{ emptyMessage }}
+            <div
+              class="w-10 h-10 rounded-full bg-n-alpha-2 flex items-center justify-center"
+            >
+              <Icon
+                :icon="isUnassigned ? 'i-lucide-user-x' : 'i-lucide-user-plus'"
+                class="text-n-slate-8 size-5"
+              />
+            </div>
+            <span class="text-xs text-n-slate-8">{{
+              isUnassigned
+                ? 'No unassigned contacts'
+                : 'No contacts in this stage'
+            }}</span>
           </div>
         </template>
       </Draggable>
@@ -150,15 +201,53 @@ const onCardClick = contact => {
 }
 
 .ghost {
-  opacity: 0.4;
-  background-color: rgb(var(--color-n-slate-4) / 0.3);
-  border-radius: 0.5rem;
+  opacity: 0.7;
+  background-color: rgb(var(--color-n-slate-4) / 0.4);
+  border-radius: 0.75rem;
   border: 2px dashed rgb(var(--color-n-slate-6));
+  box-shadow: 0 4px 12px rgb(var(--color-n-solid-3) / 0.2);
 }
 
 .drag {
-  opacity: 0.8;
-  transform: rotate(2deg);
-  box-shadow: 0 8px 16px rgb(var(--color-n-solid-3) / 0.3);
+  opacity: 0.7;
+  transform: rotate(2deg) scale(1.02);
+  box-shadow: 0 12px 24px rgb(var(--color-n-solid-3) / 0.35);
+  border-radius: 0.75rem;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-n-slate-3)) 25%,
+    rgb(var(--color-n-slate-4)) 50%,
+    rgb(var(--color-n-slate-3)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes settle {
+  0% {
+    transform: scale(1.02);
+  }
+  50% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.settle {
+  animation: settle 0.2s ease-out;
 }
 </style>
