@@ -21,10 +21,12 @@ const isStageFilterOpen = ref(false);
 const isMoveStageOpen = ref(false);
 
 // Bulk selection state
+// eslint-disable-next-line no-use-before-define
 const selectedContactIds = ref([]);
 
 const showBulkActionBar = computed(() => selectedContactIds.value.length > 0);
 const selectedCount = computed(() => selectedContactIds.value.length);
+// eslint-disable-next-line no-use-before-define
 const isAllSelected = computed(() => {
   if (sortedContacts.value.length === 0) return false;
   return sortedContacts.value.every(c =>
@@ -53,24 +55,27 @@ const clearSelection = () => {
   selectedContactIds.value = [];
 };
 
+// eslint-disable-next-line no-use-before-define
 const bulkMoveToStage = async stageId => {
   const contactsToMove = selectedContactIds.value;
   isMoveStageOpen.value = false;
   try {
-    for (const contactId of contactsToMove) {
-      const contact = contactsMap.value[contactId];
-      if (!contact) continue;
-      const fromStageId = contact.pipeline_stage_id;
-      const fromKey = fromStageId == null ? null : Number(fromStageId);
-      const toKey = stageId == null ? null : Number(stageId);
-      if (fromKey === toKey) continue;
-      await pipelineStore.moveContactToStage({
-        contactId,
-        fromStageId: String(fromKey ?? 'unassigned'),
-        toStageId: String(toKey ?? 'unassigned'),
-      });
-      syncContactsAfterStageChange(contactId, fromKey, toKey);
-    }
+    const toKey = stageId == null ? null : Number(stageId);
+    await Promise.all(
+      contactsToMove.map(async contactId => {
+        const contact = contactsMap.value[contactId];
+        if (!contact) return;
+        const fromStageId = contact.pipeline_stage_id;
+        const fromKey = fromStageId == null ? null : Number(fromStageId);
+        if (fromKey === toKey) return;
+        await pipelineStore.moveContactToStage({
+          contactId,
+          fromStageId: String(fromKey ?? 'unassigned'),
+          toStageId: String(toKey ?? 'unassigned'),
+        });
+        syncContactsAfterStageChange(contactId, fromKey, toKey);
+      })
+    );
     useAlert(`${contactsToMove.length} contacts moved successfully.`);
     clearSelection();
   } catch (error) {
@@ -78,6 +83,7 @@ const bulkMoveToStage = async stageId => {
   }
 };
 
+// eslint-disable-next-line no-use-before-define
 const bulkDelete = async () => {
   if (
     !confirm(
@@ -86,10 +92,12 @@ const bulkDelete = async () => {
   )
     return;
   try {
-    for (const contactId of selectedContactIds.value) {
-      await store.dispatch('contacts/delete', contactId);
-      delete contactsMap.value[contactId];
-    }
+    await Promise.all(
+      selectedContactIds.value.map(async contactId => {
+        await store.dispatch('contacts/delete', contactId);
+        delete contactsMap.value[contactId];
+      })
+    );
     useAlert(`${selectedContactIds.value.length} contacts deleted.`);
     clearSelection();
     await loadAllContacts();
@@ -440,8 +448,11 @@ const handleDrop = async event => {
   // Numeric versions for contactsByStage object keys (must match API types)
   const fromNumKey =
     fromKey === 'null' ? null : fromKey === null ? null : Number(fromKey);
-  const toNumKey =
-    toKey === 'null' ? null : toKey === null ? null : Number(toKey);
+  const toNumKey = (() => {
+    if (toKey === 'null') return null;
+    if (toKey === null) return null;
+    return Number(toKey);
+  })();
 
   console.log('[handleDrop] Keys normalized:', {
     fromKey,
@@ -474,7 +485,6 @@ const handleDrop = async event => {
   // Remove from source stage (handles both numeric stage and unassigned/null)
   // Normalize contactId for comparison (both may be strings or numbers)
   const contactIdNum = Number(contactId);
-  const contactIdStr = String(contactId);
   const fromKeyForRemove = fromNumKey !== null ? fromNumKey : null;
   const toKeyForRemove = toNumKey !== null ? toNumKey : null;
 
@@ -860,7 +870,7 @@ const formatDate = dateStr => {
         <table class="min-w-full table-auto">
           <thead class="border-t border-n-weak bg-n-alpha-1">
             <tr>
-              <th class="py-4 ltr:pr-4 rtl:pl-4 text-start w-10"></th>
+              <th class="py-4 ltr:pr-4 rtl:pl-4 text-start w-10" />
               <th
                 v-for="(header, i) in [
                   'Name',
@@ -904,7 +914,7 @@ const formatDate = dateStr => {
       </div>
 
       <!-- Actual list table -->
-      <div v-else class="overflow-auto" style="height: calc(100vh - 10rem)">
+      <div v-else class="overflow-auto leads-list-table">
         <table class="min-w-full table-auto divide-y divide-n-weak">
           <thead class="border-t border-n-weak bg-n-alpha-1 sticky top-0 z-10">
             <tr>
@@ -953,11 +963,15 @@ const formatDate = dateStr => {
               </th>
               <!-- Company column -->
               <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
-                <span class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide">Company</span>
+                <span
+                  class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide"
+                  >Company</span>
               </th>
               <!-- Phone column (not sortable) -->
               <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
-                <span class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide">Phone</span>
+                <span
+                  class="text-xs font-semibold text-n-slate-12 uppercase tracking-wide"
+                  >Phone</span>
               </th>
               <!-- Stage column (sortable) -->
               <th class="py-3 ltr:pr-4 rtl:pl-4 text-start">
@@ -1048,7 +1062,9 @@ const formatDate = dateStr => {
                 v-for="contact in sortedContacts"
                 :key="contact.id"
                 class="border-b border-n-weak hover:bg-n-alpha-2 cursor-pointer transition-colors border-l-2 border-l-transparent hover:border-l-n-brand"
-                :class="{ 'bg-n-alpha-2': selectedContactIds.includes(contact.id) }"
+                :class="{
+                  'bg-n-alpha-2': selectedContactIds.includes(contact.id),
+                }"
                 @click="handleRowClick(contact)"
               >
                 <td class="py-3 ltr:pr-4 rtl:pl-4 w-10" @click.stop>
@@ -1060,36 +1076,57 @@ const formatDate = dateStr => {
                   />
                 </td>
                 <td class="py-3 ltr:pr-4 rtl:pl-4">
-                  <span class="text-sm font-medium text-n-slate-12 truncate block">{{ contact.name }}</span>
+                  <span
+                    class="text-sm font-medium text-n-slate-12 truncate block"
+                    >{{ contact.name }}</span>
                 </td>
                 <td class="py-3 ltr:pr-4 rtl:pl-4 w-48">
-                  <span class="text-sm text-n-slate-11 truncate block">{{ contact.email || '—' }}</span>
+                  <span class="text-sm text-n-slate-11 truncate block">{{
+                    contact.email || '—'
+                  }}</span>
                 </td>
                 <td class="py-3 ltr:pr-4 rtl:pl-4">
-                  <span class="text-sm text-n-slate-11 truncate block">{{ contact.company?.name || '—' }}</span>
+                  <span class="text-sm text-n-slate-11 truncate block">{{
+                    contact.company?.name || '—'
+                  }}</span>
                 </td>
                 <td class="py-3 ltr:pr-4 rtl:pl-4">
-                  <span class="text-sm text-n-slate-11 truncate block">{{ contact.phone_number || '—' }}</span>
+                  <span class="text-sm text-n-slate-11 truncate block">{{
+                    contact.phone_number || '—'
+                  }}</span>
                 </td>
                 <td class="py-3 ltr:pr-4 rtl:pl-4">
                   <span
                     v-if="getStageName(contact.pipeline_stage_id)"
                     class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium text-n-slate-12"
-                    :style="{ backgroundColor: getStageColor(contact.pipeline_stage_id) + '20' }"
+                    :style="{
+                      backgroundColor:
+                        getStageColor(contact.pipeline_stage_id) + '20',
+                    }"
                   >
                     <span
                       class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      :style="{ backgroundColor: getStageColor(contact.pipeline_stage_id) }"
+                      :style="{
+                        backgroundColor: getStageColor(
+                          contact.pipeline_stage_id
+                        ),
+                      }"
                     />
                     {{ getStageName(contact.pipeline_stage_id) }}
                   </span>
-                  <span v-else class="text-xs text-n-slate-11 italic">Unassigned</span>
+                  <span v-else
+class="text-xs text-n-slate-11 italic"
+                    >Unassigned</span>
                 </td>
                 <td class="py-3 ltr:pr-4 rtl:pl-4">
-                  <span class="text-sm text-n-slate-11">{{ formatDate(contact.last_activity_at) }}</span>
+                  <span class="text-sm text-n-slate-11">{{
+                    formatDate(contact.last_activity_at)
+                  }}</span>
                 </td>
                 <td class="py-3 ltr:pr-4 rtl:pl-4">
-                  <span class="text-sm text-n-slate-11">{{ formatDate(contact.created_at) }}</span>
+                  <span class="text-sm text-n-slate-11">{{
+                    formatDate(contact.created_at)
+                  }}</span>
                 </td>
               </tr>
             </template>
@@ -1122,7 +1159,10 @@ const formatDate = dateStr => {
         v-if="showBulkActionBar"
         class="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white border border-n-weak rounded-xl px-5 py-3 shadow-lg z-50"
       >
-        <span class="text-sm font-medium text-n-slate-12">{{ selectedCount }} contact{{ selectedCount !== 1 ? 's' : '' }} selected</span>
+        <span class="text-sm font-medium text-n-slate-12">{{ selectedCount }} contact{{
+            selectedCount !== 1 ? 's' : ''
+          }}
+          selected</span>
         <div class="h-4 w-px bg-n-weak" />
         <div class="relative">
           <OnClickOutside @trigger="isMoveStageOpen = false">
@@ -1165,5 +1205,9 @@ const formatDate = dateStr => {
 .leads-index {
   height: calc(100vh - 4rem);
   overflow: hidden;
+}
+
+.leads-list-table {
+  height: calc(100vh - 10rem);
 }
 </style>

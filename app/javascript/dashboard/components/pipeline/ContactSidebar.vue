@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { usePipelineStore } from '../../stores/pipeline';
-import DropdownMenu from '../../components-next/dropdown-menu/DropdownMenu.vue';
+import { useAlert } from 'dashboard/composables';
 import Avatar from '../../components-next/avatar/Avatar.vue';
 import Icon from '../../components-next/icon/Icon.vue';
 
@@ -55,11 +55,6 @@ const currentStageColor = computed(() => {
 });
 
 const handleDropdownAction = ({ action, value }) => {
-  console.log('[sidebar] stage change handler called', {
-    action,
-    value,
-    currentStageId: props.contact?.pipeline_stage_id,
-  });
   if (action === 'select-stage') {
     isDropdownOpen.value = false;
     emit('stage-change', { toStageId: value });
@@ -113,6 +108,7 @@ const closeDropdown = () => {
 <template>
   <Teleport to="body">
     <!-- Backdrop overlay -->
+    <!-- eslint-disable-next-line vue/require-toggle-inside-transition -->
     <Transition name="backdrop-fade">
       <div
         class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
@@ -121,6 +117,7 @@ const closeDropdown = () => {
     </Transition>
 
     <!-- Sidebar panel -->
+    <!-- eslint-disable-next-line vue/require-toggle-inside-transition -->
     <Transition name="sidebar">
       <div
         class="fixed right-0 top-0 h-full w-full max-w-md bg-n-solid-2 border-l border-n-weak shadow-xl z-50 flex flex-col"

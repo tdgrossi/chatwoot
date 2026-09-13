@@ -45,12 +45,12 @@ const schoolAttributeKeys = [
 const customAttributes = computed(() => {
   const attrs = props.contact.custom_attributes || {};
   const lines = [];
-  for (const key of schoolAttributeKeys) {
+  schoolAttributeKeys.forEach(key => {
+    if (lines.length >= 2) return;
     if (attrs[key] !== undefined && attrs[key] !== null && attrs[key] !== '') {
       lines.push({ key, value: attrs[key] });
-      if (lines.length >= 2) break;
     }
-  }
+  });
   return lines;
 });
 
@@ -110,7 +110,11 @@ const handleCheckboxClick = e => {
       <span v-if="lastActivityTime" class="text-xs text-n-slate-10 truncate">
         {{ lastActivityTime }}
       </span>
-      <span v-else class="text-xs text-n-slate-8 italic"> No activity </span>
+      <span v-else
+class="text-xs text-n-slate-8 italic"
+        ><!-- eslint-disable-line @intlify/vue-i18n/no-raw-text -->
+        No activity
+      </span>
     </div>
   </div>
 </template>

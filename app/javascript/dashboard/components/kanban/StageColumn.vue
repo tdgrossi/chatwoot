@@ -37,9 +37,9 @@ const props = defineProps({
 
 const emit = defineEmits([
   'drop',
-  'card-click',
+  'cardclick',
   'update:contacts',
-  'card-select',
+  'cardselect',
 ]);
 
 const stageName = computed(() => props.stage?.name || 'Unknown Stage');
@@ -60,12 +60,6 @@ const columnTitle = computed(() =>
   props.isUnassigned ? 'Unassigned' : stageName.value
 );
 
-const emptyMessage = computed(() =>
-  props.isUnassigned
-    ? 'No unassigned contacts'
-    : `No contacts in ${stageName.value}`
-);
-
 const columnClasses = computed(() => ({
   'opacity-60 bg-n-slate-2 dark:bg-n-solid-3': props.isUnassigned,
   'bg-n-alpha-1': !props.isUnassigned,
@@ -75,13 +69,6 @@ const handleDragEnd = event => {
   const contactId = event.item?.dataset?.contactId;
   const fromStageId = event.from?.dataset?.stageId || null;
   const toStageId = event.to?.dataset?.stageId || null;
-  console.log('[kanban] drop event', {
-    contactId,
-    fromStageId,
-    toStageId,
-    fromIndex: event.oldIndex,
-    toIndex: event.newIndex,
-  });
   emit('drop', {
     contactId,
     fromStageId,
@@ -92,11 +79,11 @@ const handleDragEnd = event => {
 };
 
 const onCardClick = contact => {
-  emit('card-click', contact);
+  emit('cardclick', contact);
 };
 
 const onCardSelect = contactId => {
-  emit('card-select', contactId);
+  emit('cardselect', contactId);
 };
 </script>
 
@@ -131,8 +118,7 @@ const onCardSelect = contactId => {
         <span
           v-if="addedTodayCount > 0"
           class="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-4 h-4 px-1 text-[10px] font-medium rounded-full bg-n-teal-4 text-n-teal-11"
-        >
-          +{{ addedTodayCount }}
+        >{{ `+${addedTodayCount}` }}
         </span>
       </span>
     </div>
@@ -183,11 +169,12 @@ const onCardSelect = contactId => {
                 class="text-n-slate-8 size-5"
               />
             </div>
-            <span class="text-xs text-n-slate-8">{{
-              isUnassigned
-                ? 'No unassigned contacts'
-                : 'No contacts in this stage'
-            }}</span>
+            <span class="text-xs text-n-slate-8"><!-- eslint-disable-line @intlify/vue-i18n/no-raw-text -->
+              {{
+                isUnassigned
+                  ? 'No unassigned contacts'
+                  : 'No contacts in this stage'
+              }}</span>
           </div>
         </template>
       </Draggable>

@@ -15,10 +15,6 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
-  unassignedCount: {
-    type: Number,
-    default: 0,
-  },
   isLoading: {
     type: Boolean,
     default: false,
@@ -29,7 +25,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['drop', 'card-click', 'card-select']);
+const emit = defineEmits(['drop', 'cardclick', 'cardselect']);
 
 const focusedColumnIndex = ref(0);
 const focusedCardIndex = ref(-1);
@@ -51,11 +47,11 @@ const handleDrop = (stageId, event) => {
 };
 
 const handleCardClick = contact => {
-  emit('card-click', contact);
+  emit('cardclick', contact);
 };
 
 const handleCardSelect = contactId => {
-  emit('card-select', contactId);
+  emit('cardselect', contactId);
 };
 
 const handleBoardKeydown = event => {
@@ -98,6 +94,8 @@ const handleBoardKeydown = event => {
         handleCardClick(contacts[focusedCardIndex.value]);
       }
       break;
+    default:
+      break;
   }
 };
 // The Kanban board receives stage changes via the `drop` event -> handleDrop in LeadsIndex.
@@ -123,8 +121,8 @@ const handleBoardKeydown = event => {
         :focused-card-index="focusedColumnIndex === 0 ? focusedCardIndex : -1"
         :selected-contact-ids="selectedContactIds"
         @drop="handleDrop('unassigned', $event)"
-        @card-click="handleCardClick"
-        @card-select="handleCardSelect"
+        @cardclick="handleCardClick"
+        @cardselect="handleCardSelect"
       />
 
       <!-- Stage columns (ordered by position, per D-12) -->
@@ -141,8 +139,8 @@ const handleBoardKeydown = event => {
         "
         :selected-contact-ids="selectedContactIds"
         @drop="handleDrop(stage.id, $event)"
-        @card-click="handleCardClick"
-        @card-select="handleCardSelect"
+        @cardclick="handleCardClick"
+        @cardselect="handleCardSelect"
       />
     </div>
   </div>

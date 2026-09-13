@@ -2,7 +2,7 @@
 import { computed, onMounted } from 'vue';
 import { usePipelineStore } from '../../stores/pipeline';
 
-const emit = defineEmits(['filter-change']);
+const emit = defineEmits(['filterchange']);
 
 const pipelineStore = usePipelineStore();
 
@@ -78,7 +78,9 @@ const handleCardClick = stageId => {
         <div
           class="flex-shrink-0 w-32 border border-n-weak rounded-lg p-4 bg-n-surface-2"
         >
-          <div class="text-xs font-medium text-n-slate-11 mb-2">Total</div>
+          <div class="text-xs font-medium text-n-slate-11 mb-2">
+            <!-- eslint-disable-line @intlify/vue-i18n/no-raw-text -->Total
+          </div>
           <div class="text-2xl font-semibold text-n-slate-12">
             {{ totalCount }}
           </div>
@@ -89,7 +91,8 @@ const handleCardClick = stageId => {
           class="flex-shrink-0 w-32 border border-n-weak rounded-lg p-4 bg-n-surface-2"
         >
           <div class="text-xs font-medium text-n-slate-11 mb-2">
-            Added Today
+            <!-- eslint-disable-line @intlify/vue-i18n/no-raw-text -->Added
+            Today
           </div>
           <div class="text-2xl font-semibold text-n-slate-12">
             {{ totalAddedToday }}
@@ -103,7 +106,8 @@ const handleCardClick = stageId => {
           class="flex items-center justify-center w-full py-8 text-sm text-n-slate-11 gap-2"
         >
           <span class="i-lucide-bar-chart-3 size-4" />
-          <span>No data yet</span>
+          <span><!-- eslint-disable-line @intlify/vue-i18n/no-raw-text -->No data
+            yet</span>
         </div>
       </template>
     </div>
